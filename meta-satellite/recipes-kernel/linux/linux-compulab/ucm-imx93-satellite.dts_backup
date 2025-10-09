@@ -1,0 +1,14 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023 Compulab
+ */
+
+/dts-v1/;
+
+#include "ucm-imx93.dtsi"
+#include "ucm-imx93-lvds.dtsi"
+
+/ {
+	model = "UCM-i.MX93 Satellite Board, build-in-lvds";
+	compatible = "compulab,ucm-imx93-satellite", "fsl,imx93";
+};

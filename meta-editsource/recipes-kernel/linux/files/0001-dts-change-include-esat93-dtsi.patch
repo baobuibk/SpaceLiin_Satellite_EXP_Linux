@@ -1,0 +1,85 @@
+diff --git a/arch/arm64/boot/dts/compulab/ucm-imx93-mipi-csi.dts b/arch/arm64/boot/dts/compulab/ucm-imx93-mipi-csi.dts
+index de265fffd8e0..6d4ecce1de03 100644
+--- a/arch/arm64/boot/dts/compulab/ucm-imx93-mipi-csi.dts
++++ b/arch/arm64/boot/dts/compulab/ucm-imx93-mipi-csi.dts
+@@ -25,10 +25,3 @@ cap_device {
+ 	};
+ };
+ 
+-&sensor_mipi2 {
+-	status = "okay";
+-};
+-
+-&mipi_csi {
+-        status = "okay";
+-};
+diff --git a/arch/arm64/boot/dts/compulab/ucm-imx93.dts b/arch/arm64/boot/dts/compulab/ucm-imx93.dts
+index 6a8eee754c3b..24aa402d3c88 100644
+--- a/arch/arm64/boot/dts/compulab/ucm-imx93.dts
++++ b/arch/arm64/boot/dts/compulab/ucm-imx93.dts
+@@ -5,10 +5,11 @@
+ 
+ /dts-v1/;
+ 
+-#include "ucm-imx93.dtsi"
+-#include "ucm-imx93-lvds.dtsi"
++//#include "ucm-imx93.dtsi"
++//#include "ucm-imx93-lvds.dtsi"
++#include "esat93.dtsi"
+ 
+ / {
+-	model = "CompuLab UCM-i.MX93 board, build-in-lvds";
++	model = "UCM-i.MX93, PAY-EXP Board Devicetree Stable Rev 1.0.1";
+ 	compatible = "compulab,ucm-imx93", "fsl,imx93";
+ };
+diff --git a/arch/arm64/boot/dts/compulab/ucm-imx93.dtsi b/arch/arm64/boot/dts/compulab/ucm-imx93.dtsi
+index ce88a1d77a55..64e2654da3d9 100644
+--- a/arch/arm64/boot/dts/compulab/ucm-imx93.dtsi
++++ b/arch/arm64/boot/dts/compulab/ucm-imx93.dtsi
+@@ -484,46 +484,6 @@ goodix_ts: goodix@5d {
+ 		pinctrl-names = "default";
+ 		status = "disabled";
+ 	};
+-
+-	sensor_mipi2: mipi2@42 {
+-		compatible = "aptina,ar1335_mcu";
+-		reg = <0x42>;
+-		clocks = <&clk IMX93_CLK_MIPI_PHY_CFG>;
+-		clock-names = "xclk";
+-		pwdn-gpios = <&pca9555 8 GPIO_ACTIVE_HIGH>;
+-		pwn-gpios = <&pca9555 8 GPIO_ACTIVE_HIGH>;
+-		rst-gpios = <&pca9555 9 GPIO_ACTIVE_LOW>;
+-		mclk = <24000000>;
+-		mclk_source = <0>;
+-		mipi_csi;
+-		camera_mipi_lanes = <2>;
+-		status = "disabled";
+-
+-		port {
+-			ar1335_mipi_ep: endpoint {
+-				remote-endpoint = <&mipi_csi_ep>;
+-				data-lanes = <1 2>;
+-				clock-lanes = <0>;
+-			};
+-		};
+-	};
+-};
+-
+-&mipi_csi {
+-        #address-cells = <1>;
+-        #size-cells = <0>;
+-        status = "okay";
+-
+-        port@0 {
+-                reg = <0>;
+-                mipi_csi_ep: endpoint {
+-                        remote-endpoint = <&ar1335_mipi_ep>;
+-                        data-lanes = <2>;
+-                        cfg-clk-range = <28>;
+-                        hs-clk-range = <0x2b>;
+-                        bus-type = <4>;
+-                };
+-        };
+ };
+ 
+ &lpuart1 { /* console */

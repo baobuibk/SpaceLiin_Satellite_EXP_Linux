@@ -1,0 +1,92 @@
+diff --git a/drivers/staging/media/imx/imx8-isi-hw.c b/drivers/staging/media/imx/imx8-isi-hw.c
+index 2a0c602e9762..8b0a627e9228 100644
+--- a/drivers/staging/media/imx/imx8-isi-hw.c
++++ b/drivers/staging/media/imx/imx8-isi-hw.c
+@@ -16,6 +16,8 @@ MODULE_VERSION("1.0");
+ 
+ #define	ISI_DOWNSCALE_THRESHOLD		0x4000
+ 
++#define DEBUG
++
+ #ifdef DEBUG
+ void dump_isi_regs(struct mxc_isi_dev *mxc_isi)
+ {
+@@ -67,10 +69,10 @@ void dump_isi_regs(struct mxc_isi_dev *mxc_isi)
+ 	};
+ 	u32 i;
+ 
+-	dev_dbg(dev, "ISI CHNLC register dump, isi%d\n", mxc_isi->id);
++	dev_info(dev, "ISI CHNLC register dump, isi%d\n", mxc_isi->id);
+ 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
+ 		u32 reg = readl(mxc_isi->regs + registers[i].offset);
+-		dev_dbg(dev, "%20s[0x%.2x]: %.2x\n",
++		dev_info(dev, "%20s[0x%.2x]: %.2x\n",
+ 			registers[i].name, registers[i].offset, reg);
+ 	}
+ }
+@@ -531,7 +533,7 @@ void mxc_isi_channel_set_scaling(struct mxc_isi_dev *mxc_isi,
+ 	    dst_f->width == src_f->width) {
+ 		mxc_isi->scale = 0;
+ 		mxc_isi_channel_clear_scaling(mxc_isi);
+-		dev_dbg(&mxc_isi->pdev->dev, "%s: no scale\n", __func__);
++		dev_info(&mxc_isi->pdev->dev, "%s: no scale\n", __func__);
+ 		return;
+ 	}
+ 
+diff --git a/drivers/staging/media/imx/imx8-mipi-csi2-sam.c b/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
+index f577ffc9c5bf..8f2f75f18657 100644
+--- a/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
++++ b/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
+@@ -446,7 +446,7 @@ struct csi_state {
+ 	u32 val;
+ };
+ 
+-static int debug;
++static int debug = 2;
+ module_param(debug, int, 0644);
+ MODULE_PARM_DESC(debug, "Debug level (0-2)");
+ 
+diff --git a/drivers/staging/media/imx/imx8-mipi-csi2.c b/drivers/staging/media/imx/imx8-mipi-csi2.c
+index 8d5542d76605..db41e5431da3 100644
+--- a/drivers/staging/media/imx/imx8-mipi-csi2.c
++++ b/drivers/staging/media/imx/imx8-mipi-csi2.c
+@@ -404,10 +404,10 @@ static void mxc_mipi_csi2_reg_dump(struct mxc_mipi_csi2_dev *csi2dev)
+ 	};
+ 	u32 i;
+ 
+-	dev_dbg(dev, "MIPI CSI2 CSR and HC register dump, mipi csi%d\n", csi2dev->id);
++	dev_info(dev, "MIPI CSI2 CSR and HC register dump, mipi csi%d\n", csi2dev->id);
+ 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
+ 		u32 reg = readl(csi2dev->base_regs + registers[i].offset);
+-		dev_dbg(dev, "%20s[0x%.3x]: 0x%.3x\n",
++		dev_info(dev, "%20s[0x%.3x]: 0x%.3x\n",
+ 			registers[i].name, registers[i].offset, reg);
+ 	}
+ }
+@@ -440,7 +440,7 @@ static void mxc_mipi_csi2_enable(struct mxc_mipi_csi2_dev *csi2dev)
+ 	while (val & CSI2SS_PLM_CTRL_PL_CLK_RUN) {
+ 		msleep(10);
+ 		val = readl(csi2dev->csr_regs + CSI2SS_PLM_CTRL);
+-		dev_dbg(dev, "Waiting pl clk running, val=0x%x\n", val);
++		dev_info(dev, "Waiting pl clk running, val=0x%x\n", val);
+ 	}
+ 
+ 	/* Enable Pixel link Master*/
+@@ -608,7 +608,7 @@ static int mxc_csi2_get_sensor_fmt(struct mxc_mipi_csi2_dev *csi2dev)
+ 	/* Update input frame size and formate  */
+ 	memcpy(mf, &src_fmt.format, sizeof(struct v4l2_mbus_framefmt));
+ 
+-	dev_dbg(&csi2dev->pdev->dev, "width=%d, height=%d, fmt.code=0x%x\n",
++	dev_info(&csi2dev->pdev->dev, "width=%d, height=%d, fmt.code=0x%x\n",
+ 		mf->width, mf->height, mf->code);
+ 
+ 	/* get link rate from transmitter */
+@@ -1039,7 +1039,7 @@ static int mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
+ 	struct device *dev = &csi2dev->pdev->dev;
+ 	int ret = 0;
+ 
+-	dev_dbg(&csi2dev->pdev->dev, "%s: %d, csi2dev: 0x%x\n",
++	dev_info(&csi2dev->pdev->dev, "%s: %d, csi2dev: 0x%x\n",
+ 		__func__, enable, csi2dev->flags);
+ 
+ 	if (enable) {

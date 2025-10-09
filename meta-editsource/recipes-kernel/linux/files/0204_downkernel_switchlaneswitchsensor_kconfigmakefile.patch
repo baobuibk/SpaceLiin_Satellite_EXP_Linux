@@ -1,0 +1,36 @@
+diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
+index d7541765e6dc..c555e8ec0703 100644
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -41,6 +41,18 @@ config VIDEO_APTINA_PLL
+ config VIDEO_CCS_PLL
+ 	tristate
+ 
++config PCA9544_LANE_SWITCH
++	tristate "PCA9544 I2C Lane Switcher"
++	depends on I2C
++	help
++	  Driver for PCA9544APW I2C multiplexer for camera lane switching.
++
++config TCA6416_SENSOR_SWITCH
++	tristate "TCA6416 Sensor Switcher"
++	depends on I2C
++	help
++	  Driver for TCA6416 GPIO expander for camera sensor switching.
++
+ config VIDEO_AR2020
+         tristate "ON Semiconductor AR2020 camera driver"
+         depends on I2C && VIDEO_DEV
+diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
+index 34d0ae5517ef..9137d5826ed8 100644
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -19,6 +19,8 @@ obj-$(CONFIG_VIDEO_ADV7842) += adv7842.o
+ obj-$(CONFIG_VIDEO_AK7375) += ak7375.o
+ obj-$(CONFIG_VIDEO_AK881X) += ak881x.o
+ obj-$(CONFIG_VIDEO_APTINA_PLL) += aptina-pll.o
++obj-$(CONFIG_PCA9544_LANE_SWITCH) += pca9544-switch.o
++obj-$(CONFIG_TCA6416_SENSOR_SWITCH) += tca6416-sensor.o
+ obj-$(CONFIG_VIDEO_AR2020) += ar2020.o
+ obj-$(CONFIG_VIDEO_AR0521) += ar0521.o
+ obj-$(CONFIG_VIDEO_BT819) += bt819.o

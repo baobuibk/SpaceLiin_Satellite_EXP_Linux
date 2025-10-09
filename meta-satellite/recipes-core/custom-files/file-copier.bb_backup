@@ -1,0 +1,35 @@
+SUMMARY = "Custom files for image"
+DESCRIPTION = "Copy custom binaries, scripts, or configs into the image"
+LICENSE = "MIT"
+
+# Source files (relative to files/)
+#SRC_URI += "file://hello_world.elf"
+SRC_URI += " \
+    file://freertos_hello.elf \
+    file://.welcome_steven \
+"
+
+inherit allarch
+
+PN = "file-copier"
+
+# Workdir = where Yocto unpack file, need define S
+S = "${WORKDIR}"
+
+do_install() {
+    # copy file into
+    install -d ${D}/lib/firmware
+    install -m 0755 ${WORKDIR}/freertos_hello.elf ${D}/lib/firmware
+    install -d ${D}/home/root
+    install -m 0755 ${WORKDIR}/.welcome_steven ${D}/home/root
+}
+
+# Package out (myfiles package)
+#FILES:${PN} += "/lib/firmware/hello_world.elf"
+FILES:${PN} += " \
+    /lib/firmware/freertos_hello.elf \
+    /home/root/.welcome_steven \
+"
+
+INSANE_SKIP:${PN} += "arch usrmerge"
+INSANE_SKIP:${PN}-dbg += "arch usrmerge"

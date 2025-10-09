@@ -1,0 +1,88 @@
+diff --git a/drivers/staging/media/imx/dwc-mipi-csi2.c b/drivers/staging/media/imx/dwc-mipi-csi2.c
+index 3c57eb754a6f..32aed3dabdd9 100644
+--- a/drivers/staging/media/imx/dwc-mipi-csi2.c
++++ b/drivers/staging/media/imx/dwc-mipi-csi2.c
+@@ -727,7 +727,7 @@ static void disp_mix_gasket_config(struct dwc_mipi_csi2_host *csi2h)
+ 	}
+ 
+ 	if (csi2h->ppi_pg_enable)
+-		fmt_val = DT_RGB888;
++		fmt_val = DT_RAW10;
+ 
+ 	regmap_write(gasket, DISP_MIX_CAMERA_MUX, 0x0);
+ 
+diff --git a/drivers/staging/media/imx/imx8-isi-cap.c b/drivers/staging/media/imx/imx8-isi-cap.c
+index 0dba802c16be..1ad32b19157a 100644
+--- a/drivers/staging/media/imx/imx8-isi-cap.c
++++ b/drivers/staging/media/imx/imx8-isi-cap.c
+@@ -56,14 +56,14 @@ struct mxc_isi_fmt mxc_isi_src_formats[] = {
+ 		.colplanes	= 1,
+ 		.align		= 2,
+ 	}, {
+-		.name		= "RAW_Y10",
+-		.fourcc		= V4L2_PIX_FMT_Y10,
++		.name		= "RAW10",
++		.fourcc		= V4L2_PIX_FMT_SBGGR10P,
+ 		.depth		= { 16 },
+ 		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
++		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
+ 	}
+ };
+ 
+@@ -970,7 +970,7 @@ static int mxc_isi_source_fmt_init(struct mxc_isi_cap_dev *isi_cap)
+ 
+ 	src_fmt.pad = source_pad->index;
+ 	src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+-	src_fmt.format.code = V4L2_PIX_FMT_SGRBG10;
++	src_fmt.format.code = V4L2_PIX_FMT_SBGGR10P;
+ 	src_fmt.format.width = dst_f->width;
+ 	src_fmt.format.height = dst_f->height;
+ 	ret = v4l2_subdev_call(src_sd, pad, set_fmt, NULL, &src_fmt);
+diff --git a/drivers/staging/media/imx/imx8-isi-fmt.c b/drivers/staging/media/imx/imx8-isi-fmt.c
+index 2dee82549698..02db735b04e4 100644
+--- a/drivers/staging/media/imx/imx8-isi-fmt.c
++++ b/drivers/staging/media/imx/imx8-isi-fmt.c
+@@ -8,14 +8,14 @@
+ 
+ struct mxc_isi_fmt mxc_isi_out_formats[] = {
+ 	{
+-		.name		= "RAW_Y10",
+-		.fourcc		= V4L2_PIX_FMT_Y10,
++		.name		= "RAW10",
++		.fourcc		= V4L2_PIX_FMT_SBGGR10P,
+ 		.depth		= { 16 },
+ 		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
++		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
+ 	}
+ };
+ 
+diff --git a/drivers/staging/media/imx/imx8-isi-m2m.c b/drivers/staging/media/imx/imx8-isi-m2m.c
+index 625583348aa0..41bd097ad0d3 100644
+--- a/drivers/staging/media/imx/imx8-isi-m2m.c
++++ b/drivers/staging/media/imx/imx8-isi-m2m.c
+@@ -42,14 +42,14 @@
+ struct mxc_isi_fmt mxc_isi_input_formats[] = {
+ 	/* Pixel link input format */
+ 	{
+-		.name		= "BA10",
+-		.fourcc		= V4L2_PIX_FMT_SGRBG10,
++		.name		= "RAW10",
++		.fourcc		= V4L2_PIX_FMT_SBGGR10P,
+ 		.depth		= { 16 },
+ 		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
++		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
+ 	}
+ };
+ 

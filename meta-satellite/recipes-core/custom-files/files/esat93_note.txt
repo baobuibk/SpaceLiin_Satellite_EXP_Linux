@@ -1,0 +1,118 @@
+modprobe -r imx8-media-dev && modprobe -r ar2020 && dmesg --clear && modprobe ar2020 && dmesg && modprobe imx8-media-dev
+
+v4l2-ctl --device=/dev/video0 --set-fmt-video=width=3840,height=2160,pixelformat=BG10 && v4l2-ctl --device=/dev/video0 --stream-mmap --stream-count=1 --stream-to=output.raw
+
+v4l2-ctl --device=/dev/video0 --set-fmt-video=width=3840,height=2160,pixelformat=BG10 && v4l2-ctl --device=/dev/video0 --stream-mmap --stream-count=1 --stream-to=output.raw --verbose
+
+v4l2-ctl --device=/dev/video0 --set-fmt-video=width=1920,height=1080,pixelformat=BG10 && v4l2-ctl --device=/dev/video0 --stream-mmap --stream-count=1 --stream-to=output.raw --verbose
+
+echo 0x1f > /sys/class/video4linux/video0/dev_debug 
+echo -n 'file dwc-mipi-csi2.c +p' > /sys/kernel/debug/dynamic_debug/control
+echo -n 'file mxc_isi.c +p' > /sys/kernel/debug/dynamic_debug/control
+
+----------------------------------- After 01/10/2025 --------------------------------------
+v4l2-ctl --device=/dev/video0 --set-fmt-video=width=4096,height=3840,pixelformat=BA10 && v4l2-ctl --device=/dev/video0 --stream-mmap --stream-count=1 --stream-to="/home/esat93/$(date +%H%M%S)_output.raw" --verbose
+
+# Check lane switcher
+ls /sys/bus/i2c/devices/3-0070/lane_switch/
+cat /sys/bus/i2c/devices/3-0070/lane_switch/current_lane
+cat /sys/bus/i2c/devices/3-0070/lane_switch/available_lanes
+
+# Check sensor switcher
+ls /sys/bus/i2c/devices/3-0020/sensor_switch/
+cat /sys/bus/i2c/devices/3-0020/sensor_switch/current_sensor
+cat /sys/bus/i2c/devices/3-0020/sensor_switch/available_sensors
+
+# Switch to lane 2
+echo 2 | sudo tee /sys/bus/i2c/devices/3-0070/lane_switch/current_lane
+
+# Switch to sensor 3
+echo 3 | sudo tee /sys/bus/i2c/devices/3-0020/sensor_switch/current_sensor
+
+# Verify
+cat /sys/bus/i2c/devices/3-0070/lane_switch/current_lane
+cat /sys/bus/i2c/devices/3-0020/sensor_switch/current_sensor
+
+
+Auto-loading at Boot
+Create systemd service for auto-loading:
+bashsudo nano /etc/modules-load.d/camera-switch.conf
+Add:
+pca9544-switch
+tca6416-sensor
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+void switch_camera(int lane, int sensor) {
+    FILE *fp;
+    
+    // Switch lane
+    fp = fopen("/sys/bus/i2c/devices/3-0070/lane_switch/current_lane", "w");
+    if (fp) {
+        fprintf(fp, "%d", lane);
+        fclose(fp);
+    }
+    
+    // Switch sensor
+    fp = fopen("/sys/bus/i2c/devices/3-0020/sensor_switch/current_sensor", "w");
+    if (fp) {
+        fprintf(fp, "%d", sensor);
+        fclose(fp);
+    }
+    
+    usleep(100000); // 100ms delay for stabilization
+}
+
+int main() {
+    // Switch to camera 1
+    switch_camera(1, 1);
+    
+    // V4L2 capture code
+    // ...
+    
+    return 0;
+}
+
+
+#-------------------------------------------------------------
+  $sudo ip link set can0 type can bitrate 500000
+  $sudo ip link set can0 up
+Terminal 1 (listen for CAN messages):    $candump can0
+Terminal 2 (send a test message):           $cansend can0 1234#abcd
+
+#-------------------------------------------------------------
+tep 1: Connect CN25 pin 1 to CN18 pin 1, CN25 pin 3 to CN18 pin 3 (on ECB-960T). 
+Step 2: Set CAN0 and CAN1 up. 
+root@uCOM-IMX93:~# ip link set can0 type can bitrate 1000000 dbitrate 
+4000000 fd on 
+root@uCOM-IMX93:~# ifconfig can0 up 
+root@uCOM-IMX93:~# ip link set can1 type can bitrate 1000000 dbitrate 
+4000000 fd on 
+root@uCOM-IMX93:~# ifconfig can1 up 
+Step 3: candump CAN0  
+root@uCOM-IMX93:~# candump can0 & 
+Step 4: cansend CAN1 
+root@uCOM-IMX93:~#cansend can1 5A1#11.2233.44556677.88 
+can0  5A1   [8]  11 22 33 44 55 66 77 88 
+#-------------------------------------------------------------
+ip link set can0 down
+ip link set can1 down
+
+ip link set can0 up type can bitrate 500000
+ip link set can1 up type can bitrate 500000
+
+ip -details -statistics link show can0
+ip -details -statistics link show can1
+
+cansend can0 123#11223344
+candump can1
+
+#Loopback
+ip link set can0 down
+ip link set can0 up type can bitrate 500000 loopback on
+cansend can0 123#DEADBEEF
+candump can0

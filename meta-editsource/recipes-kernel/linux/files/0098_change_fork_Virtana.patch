@@ -1,0 +1,736 @@
+diff --git a/drivers/staging/media/imx/dwc-mipi-csi2.c b/drivers/staging/media/imx/dwc-mipi-csi2.c
+index 8a24b0231596..3c57eb754a6f 100644
+--- a/drivers/staging/media/imx/dwc-mipi-csi2.c
++++ b/drivers/staging/media/imx/dwc-mipi-csi2.c
+@@ -410,40 +410,42 @@ static void dwc_mipi_csi2_dump(struct dwc_mipi_csi2_host *csi2h)
+ {
+ 	struct device *dev = &csi2h->pdev->dev;
+ 
+-	dev_dbg(dev, "DWC CSI2 Version: %#x\n", dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_VERSION));
+-	dev_dbg(dev, "DWC CSI2 lanes: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_N_LANES));
+-	dev_dbg(dev, "DWC CSI2 HOST RESETN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_HOST_RESETN));
+-	dev_dbg(dev, "DWC CSI2 INT STATUS MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_MAIN));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_1));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_2));
+-	dev_dbg(dev, "DWC CSI2 DPHY CFG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_CFG));
+-	dev_dbg(dev, "DWC CSI2 DPHY MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_MODE));
+-	dev_dbg(dev, "DWC CSI2 INT STATUS AP MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_AP_MAIN));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS VC1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_1));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS VC2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_2));
+-	dev_dbg(dev, "DWC CSI2 DPHY SHUTDOWN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_SHUTDOWNZ));
+-	dev_dbg(dev, "DWC CSI2 DPHY RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RSTZ));
+-	dev_dbg(dev, "DWC CSI2 DPHY RX STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RX_STATUS));
+-	dev_dbg(dev, "DWC CSI2 DPHY STOP STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_STOPSTATE));
+-	dev_dbg(dev, "DWC CSI2 DPHY TEST CTRL0: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL0));
+-	dev_dbg(dev, "DWC CSI2 DPHY TEST CTRL1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL1));
+-	dev_dbg(dev, "DWC CSI2 PPI PG PATTERN HIGH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_VRES));
+-	dev_dbg(dev, "DWC CSI2 PPI PG PATTERN WIDTH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_HRES));
+-	dev_dbg(dev, "DWC CSI2 PPI PG CONFIG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_CONFIG));
+-	dev_dbg(dev, "DWC CSI2 PPI PG ENABLE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_ENABLE));
+-	dev_dbg(dev, "DWC CSI2 PPI PG STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_STATUS));
+-	dev_dbg(dev, "DWC CSI2 IPI MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_MODE));
+-	dev_dbg(dev, "DWC CSI2 IPI VCID: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_VCID));
+-	dev_dbg(dev, "DWC CSI2 IPI DATA TYPE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_DATA_TYPE));
+-	dev_dbg(dev, "DWC CSI2 IPI SOFT RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_SOFTRSTN));
+-	dev_dbg(dev, "DWC CSI2 IPI ADV FEATURE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_ADV_FEATURES));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_PHY_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xE4));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_PKT_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xF4));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_PHY: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x114));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_IPI_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x144));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_BNDRY_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x284));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_SEQ_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x294));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_DATA_ID: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x2c4));
++	dev_info(dev, "DWC CSI2 Version: %#x\n", dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_VERSION));
++	dev_info(dev, "DWC CSI2 lanes: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_N_LANES));
++	dev_info(dev, "DWC CSI2 HOST RESETN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_HOST_RESETN));
++	dev_info(dev, "DWC CSI2 INT STATUS MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_MAIN));
++	dev_info(dev, "DWC CSI2 DATA IDS1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_1));
++	dev_info(dev, "DWC CSI2 DATA IDS2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_2));
++	dev_info(dev, "DWC CSI2 DPHY CFG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_CFG));
++	dev_info(dev, "DWC CSI2 DPHY MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_MODE));
++	dev_info(dev, "DWC CSI2 INT STATUS AP MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_AP_MAIN));
++	dev_info(dev, "DWC CSI2 DATA IDS VC1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_1));
++	dev_info(dev, "DWC CSI2 DATA IDS VC2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_2));
++	dev_info(dev, "DWC CSI2 DPHY SHUTDOWN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_SHUTDOWNZ));
++	dev_info(dev, "DWC CSI2 DPHY RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RSTZ));
++	dev_info(dev, "DWC CSI2 DPHY RX STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RX_STATUS));
++	dev_info(dev, "DWC CSI2 DPHY STOP STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_STOPSTATE));
++	dev_info(dev, "DWC CSI2 DPHY TEST CTRL0: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL0));
++	dev_info(dev, "DWC CSI2 DPHY TEST CTRL1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL1));
++	dev_info(dev, "DWC CSI2 PPI PG PATTERN HIGH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_VRES));
++	dev_info(dev, "DWC CSI2 PPI PG PATTERN WIDTH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_HRES));
++	dev_info(dev, "DWC CSI2 PPI PG CONFIG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_CONFIG));
++	dev_info(dev, "DWC CSI2 PPI PG ENABLE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_ENABLE));
++	dev_info(dev, "DWC CSI2 PPI PG STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_STATUS));
++	dev_info(dev, "DWC CSI2 IPI MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_MODE));
++	dev_info(dev, "DWC CSI2 IPI VCID: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_VCID));
++	dev_info(dev, "DWC CSI2 IPI DATA TYPE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_DATA_TYPE));
++	dev_info(dev, "DWC CSI2 IPI SOFT RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_SOFTRSTN));
++	dev_info(dev, "DWC CSI2 IPI ADV FEATURE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_ADV_FEATURES));
++	dev_info(dev, "DWC CSI2 INT_MSK_PHY_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xE4));
++	dev_info(dev, "DWC CSI2 INT_MSK_PKT_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xF4));
++	dev_info(dev, "DWC CSI2 INT_MSK_PHY: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x114));
++	dev_info(dev, "DWC CSI2 INT_MSK_IPI_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x144));
++	dev_info(dev, "DWC CSI2 INT_MSK_BNDRY_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x284));
++	dev_info(dev, "DWC CSI2 INT_MSK_SEQ_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x294));
++	dev_info(dev, "DWC CSI2 INT_MSK_DATA_ID: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x2c4));
++
++	dev_info(dev, "IPI FATAL 140: %#x\n", dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_IPI_FATAL));
+ }
+ 
+ static void gasket_dump(struct dwc_mipi_csi2_host *csi2h)
+@@ -453,19 +455,19 @@ static void gasket_dump(struct dwc_mipi_csi2_host *csi2h)
+ 	u32 val;
+ 
+ 	regmap_read(gasket, DISP_MIX_CAMERA_MUX, &val);
+-	dev_dbg(dev, "gasket: CAMERA MUX: %#x\n", val);
++	dev_info(dev, "gasket: CAMERA MUX: %#x\n", val);
+ 
+ 	regmap_read(gasket, DISP_MIX_CSI_REG, &val);
+-	dev_dbg(dev, "gasket: CSI REG: %#x\n", val);
++	dev_info(dev, "gasket: CSI REG: %#x\n", val);
+ 
+ 	regmap_read(gasket, 0x3C, &val);
+-	dev_dbg(dev, "gasket: MIPI -> ISI pixel ctrl: %#x\n", val);
++	dev_info(dev, "gasket: MIPI -> ISI pixel ctrl: %#x\n", val);
+ 
+ 	regmap_read(gasket, 0x40, &val);
+-	dev_dbg(dev, "gasket: MIPI -> ISI pixel cnt: %#x\n", val);
++	dev_info(dev, "gasket: MIPI -> ISI pixel cnt: %#x\n", val);
+ 
+ 	regmap_read(gasket, 0x44, &val);
+-	dev_dbg(dev, "gasket: MIPI -> ISI line cnt: %#x\n", val);
++	dev_info(dev, "gasket: MIPI -> ISI line cnt: %#x\n", val);
+ }
+ 
+ static inline struct dwc_mipi_csi2_host *sd_to_dwc_mipi_csi2h(
+@@ -559,7 +561,7 @@ static void dwc_pattern_generate(struct dwc_mipi_csi2_host *csi2h)
+ 	val = (csi2h->ppi_pg_enable) ? DWC_MIPI_CSI2_PPI_PG_ENABLE_EN : 0;
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_PPI_PG_ENABLE, val);
+ 
+-	dev_dbg(dev, "enable DWC MIPI CSI2 pattern generator\n");
++	dev_info(dev, "enable DWC MIPI CSI2 pattern generator\n");
+ }
+ 
+ static void dwc_mipi_csi2_dphy_reset(struct dwc_mipi_csi2_host *csi2h)
+@@ -618,7 +620,7 @@ static void dwc_mipi_csi2_ipi_config_htiming(struct dwc_mipi_csi2_host *csi2h)
+ 	val = DWC_MIPI_CSI2_IPI_HLINE_TIME_VAL(ipi_cfg->hline_time);
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_HLINE_TIME, val);
+ 
+-	dev_dbg(dev, "hsa_time=%d, hbp_time=%d, hsd_time=%d, hline_time=%d\n",
++	dev_info(dev, "hsa_time=%d, hbp_time=%d, hsd_time=%d, hline_time=%d\n",
+ 		ipi_cfg->hsa_time, ipi_cfg->hbp_time,
+ 		ipi_cfg->hsd_time, ipi_cfg->hline_time);
+ }
+@@ -641,7 +643,7 @@ static void dwc_mipi_csi2_ipi_config_vtiming(struct dwc_mipi_csi2_host *csi2h)
+ 	val = DWC_MIPI_CSI2_IPI_VACTIVE_LINES_VAL(ipi_cfg->vactive_lines);
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_VACTIVE_LINES, val);
+ 
+-	dev_dbg(dev, "vsa_lines=%d, vbp_lines=%d, vsd_lines=%d, active_lines=%d\n",
++	dev_info(dev, "vsa_lines=%d, vbp_lines=%d, vsd_lines=%d, active_lines=%d\n",
+ 		ipi_cfg->vsa_lines, ipi_cfg->vbp_lines,
+ 		ipi_cfg->vfp_lines, ipi_cfg->vactive_lines);
+ }
+@@ -716,6 +718,9 @@ static void disp_mix_gasket_config(struct dwc_mipi_csi2_host *csi2h)
+ 	case MEDIA_BUS_FMT_SRGGB12_1X12:
+ 		fmt_val = DT_RAW12;
+ 		break;
++	case MEDIA_BUS_FMT_Y10_1X10:
++		fmt_val = DT_RAW10;
++		break;
+ 	default:
+ 		pr_err("gasket not support format %d\n", mf->code);
+ 		return;
+@@ -733,7 +738,7 @@ static void disp_mix_gasket_config(struct dwc_mipi_csi2_host *csi2h)
+ 	val |= csi2h->yuv420_line_sel << 13;
+ 	regmap_write(gasket, DISP_MIX_CAMERA_MUX, val);
+ 
+-	dev_dbg(dev, "format: %#x, w/h=(%d, %d)\n", mf->code, mf->width, mf->height);
++	dev_info(dev, "format: %#x, w/h=(%d, %d)\n", mf->code, mf->width, mf->height);
+ 	if (WARN_ON(!mf->width || !mf->height)) {
+ 		pr_err("Invaid width/height\n");
+ 		return;
+@@ -851,7 +856,7 @@ static int dwc_mipi_csi2_host_ipi_config(struct dwc_mipi_csi2_host *csi2h)
+ 		val &= ~DWC_MIPI_CSI2_IPI_VCID_VC_2;
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_VCID, val);
+ 
+-	dev_dbg(dev, "data_type:0x%x, virtual chan: %d\n",
++	dev_info(dev, "data_type:0x%x, virtual chan: %d\n",
+ 		ipi_cfg->data_type, ipi_cfg->vir_chan);
+ 
+ 	/* 1. Select the IPI mode, camera timing by default
+@@ -880,7 +885,7 @@ static int dwc_mipi_csi2_host_ipi_config(struct dwc_mipi_csi2_host *csi2h)
+ 	if (ipi_cfg->controller_mode || csi2h->ppi_pg_enable)
+ 		dwc_mipi_csi2_ipi_config_vtiming(csi2h);
+ 
+-	dev_dbg(dev, "ipi mode: %s, color_mode: %s\n",
++	dev_info(dev, "ipi mode: %s, color_mode: %s\n",
+ 		ipi_cfg->controller_mode ? "controller" : "camera",
+ 		ipi_cfg->color_mode_16   ? "color mode 16" : "color mode 48");
+ 
+@@ -1001,7 +1006,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 		memset(ipi_cfg, 0x0, sizeof(*ipi_cfg));
+ 
+ 		if (csi2h->ppi_pg_enable) {
+-			ipi_cfg->data_type  = DT_RGB888;
++			ipi_cfg->data_type  = DT_RAW10;
+ 			ipi_cfg->vir_chan   = 0;
+ 			ipi_cfg->hsa_time   = 3;
+ 			ipi_cfg->hbp_time   = 2;
+@@ -1012,10 +1017,10 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 			ipi_cfg->vfp_lines  = 0xf;
+ 			ipi_cfg->vactive_lines   = 1080;
+ 			ipi_cfg->controller_mode = 0;
+-			ipi_cfg->color_mode_16   = 0;
++			ipi_cfg->color_mode_16   = 1;
+ 			ipi_cfg->embeded_data    = 0;
+ 		} else {
+-			ipi_cfg->data_type  = DT_YUV422_8;
++			ipi_cfg->data_type  = DT_RAW10;
+ 			ipi_cfg->vir_chan   = 0;
+ 			ipi_cfg->hsa_time   = 0;
+ 			ipi_cfg->hbp_time   = 0;
+@@ -1026,7 +1031,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 			ipi_cfg->vfp_lines  = 0;
+ 			ipi_cfg->vactive_lines   = 0x320;
+ 			ipi_cfg->controller_mode = 0;
+-			ipi_cfg->color_mode_16   = 0;
++			ipi_cfg->color_mode_16   = 1;
+ 			ipi_cfg->embeded_data    = 0;
+ 		}
+ 	}
+@@ -1045,7 +1050,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 	of_property_read_u32(node, "cfg-clk-range", &csi2h->cfgclkfreqrange);
+ 	of_property_read_u32(node, "hs-clk-range", &csi2h->hsclkfreqrange);
+ 
+-	dev_dbg(dev, "cfgclkfreqrange=%d, hsfreqrange=%d\n",
++	dev_info(dev, "cfgclkfreqrange=%d, hsfreqrange=%d\n",
+ 		 csi2h->cfgclkfreqrange, csi2h->hsclkfreqrange);
+ 	return 0;
+ }
+@@ -1204,16 +1209,26 @@ static int dwc_mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
+ 
+ 	if (enable) {
+ 		pm_runtime_get_sync(dev);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 1");
+ 		dwc_mipi_csi2_host_startup(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 2");
+ 		dwc_mipi_csi2_host_init(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 3");
+ 		dwc_mipi_csi2_host_ipi_config(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 4");
+ 		dwc_mipi_csi2_host_hs_rx_start(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 5");
+ 		disp_mix_gasket_config(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 6");
+ 		dwc_mipi_csi2_dump(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step 7");
+ 		gasket_dump(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step X");
+ 	} else {
+ 		dwc_mipi_csi2_host_hs_rx_stop(csi2h);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step A");
+ 		pm_runtime_put(dev);
++		dev_info(&csi2h->pdev->dev, "DWC-MIPI-CSI2 s_stream Step B");
+ 	}
+ 
+ 	return ret;
+diff --git a/drivers/staging/media/imx/imx-media-fim.c b/drivers/staging/media/imx/imx-media-fim.c
+index e28a33d9dec7..924572282da2 100644
+--- a/drivers/staging/media/imx/imx-media-fim.c
++++ b/drivers/staging/media/imx/imx-media-fim.c
+@@ -190,6 +190,54 @@ static void frame_interval_monitor(struct imx_media_fim *fim,
+ 		send_fim_event(fim, error_avg);
+ }
+ 
++#ifdef CONFIG_IMX_GPT_ICAP
++/*
++ * Input Capture method of measuring frame intervals. Not subject
++ * to interrupt latency.
++ */
++static void fim_input_capture_handler(int channel, void *dev_id,
++				      ktime_t timestamp)
++{
++	struct imx_media_fim *fim = dev_id;
++	unsigned long flags;
++
++	spin_lock_irqsave(&fim->lock, flags);
++
++	frame_interval_monitor(fim, timestamp);
++
++	if (!completion_done(&fim->icap_first_event))
++		complete(&fim->icap_first_event);
++
++	spin_unlock_irqrestore(&fim->lock, flags);
++}
++
++static int fim_request_input_capture(struct imx_media_fim *fim)
++{
++	init_completion(&fim->icap_first_event);
++
++	return mxc_request_input_capture(fim->icap_channel,
++					 fim_input_capture_handler,
++					 fim->icap_flags, fim);
++}
++
++static void fim_free_input_capture(struct imx_media_fim *fim)
++{
++	mxc_free_input_capture(fim->icap_channel, fim);
++}
++
++#else /* CONFIG_IMX_GPT_ICAP */
++
++static int fim_request_input_capture(struct imx_media_fim *fim)
++{
++	return 0;
++}
++
++static void fim_free_input_capture(struct imx_media_fim *fim)
++{
++}
++
++#endif /* CONFIG_IMX_GPT_ICAP */
++
+ /*
+  * In case we are monitoring the first frame interval after streamon
+  * (when fim->num_skip = 0), we need a valid fim->last_ts before we
+@@ -388,8 +436,15 @@ void imx_media_fim_set_stream(struct imx_media_fim *fim,
+ 		update_fim_nominal(fim, fi);
+ 		spin_unlock_irqrestore(&fim->lock, flags);
+ 
+-		if (icap_enabled(fim))
++		if (icap_enabled(fim)) {
++			ret = fim_request_input_capture(fim);
++			if (ret)
++				goto out;
+ 			fim_acquire_first_ts(fim);
++		}
++	} else {
++		if (icap_enabled(fim))
++			fim_free_input_capture(fim);
+ 	}
+ 
+ 	fim->stream_on = on;
+diff --git a/drivers/staging/media/imx/imx-media-utils.c b/drivers/staging/media/imx/imx-media-utils.c
+index 064dc562bc96..fe3dbc8f8458 100644
+--- a/drivers/staging/media/imx/imx-media-utils.c
++++ b/drivers/staging/media/imx/imx-media-utils.c
+@@ -726,6 +726,26 @@ find_pipeline_entity(struct media_entity *start, u32 grp_id,
+ 	return pad ? pad->entity : NULL;
+ }
+ 
++
++/*
++ * Find the upstream mipi-csi2 virtual channel reached from the given
++ * start entity in the current pipeline.
++ * Must be called with mdev->graph_mutex held.
++ */
++int imx_media_pipeline_csi2_channel(struct media_entity *start_entity)
++{
++	struct media_pad *pad;
++	int ret = -EPIPE;
++
++	pad = imx_media_pipeline_pad(start_entity, IMX_MEDIA_GRP_ID_CSI2,
++				     0, true);
++	if (pad)
++		ret = pad->index - 1;
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(imx_media_pipeline_csi2_channel);
++
+ /*
+  * Find a subdev reached upstream from the given start entity in
+  * the current pipeline.
+@@ -744,6 +764,57 @@ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
+ 	return media_entity_to_v4l2_subdev(me);
+ }
+ EXPORT_SYMBOL_GPL(imx_media_pipeline_subdev);
++/*
++ * Find a subdev reached upstream from the given start entity in
++ * the current pipeline.
++ * Must be called with mdev->graph_mutex held.
++ */
++struct video_device *
++imx_media_pipeline_video_device(struct media_entity *start_entity,
++				enum v4l2_buf_type buftype, bool upstream)
++{
++	struct media_entity *me;
++
++	me = find_pipeline_entity(start_entity, 0, buftype, upstream);
++	if (!me)
++		return ERR_PTR(-ENODEV);
++
++	return media_entity_to_video_device(me);
++}
++EXPORT_SYMBOL_GPL(imx_media_pipeline_video_device);
++
++/*
++ * Find a fwnode endpoint that maps to the given subdevice's pad.
++ * If there are multiple endpoints that map to the pad, only the
++ * first endpoint encountered is returned.
++ *
++ * On success the refcount of the returned fwnode endpoint is
++ * incremented.
++ */
++struct fwnode_handle *imx_media_get_pad_fwnode(struct media_pad *pad)
++{
++	struct fwnode_handle *endpoint;
++	struct v4l2_subdev *sd;
++
++	if (!is_media_entity_v4l2_subdev(pad->entity))
++		return ERR_PTR(-ENODEV);
++
++	sd = media_entity_to_v4l2_subdev(pad->entity);
++
++	fwnode_graph_for_each_endpoint(dev_fwnode(sd->dev), endpoint) {
++		int pad_idx = media_entity_get_fwnode_pad(&sd->entity,
++							  endpoint,
++							  pad->flags);
++		if (pad_idx < 0)
++			continue;
++
++		if (pad_idx == pad->index)
++			return endpoint;
++	}
++
++	return ERR_PTR(-ENODEV);
++}
++EXPORT_SYMBOL_GPL(imx_media_get_pad_fwnode);
+ 
+ /*
+  * Turn current pipeline streaming on/off starting from entity.
+diff --git a/drivers/staging/media/imx/imx-media.h b/drivers/staging/media/imx/imx-media.h
+index 2640cd34dce2..da1291de9253 100644
+--- a/drivers/staging/media/imx/imx-media.h
++++ b/drivers/staging/media/imx/imx-media.h
+@@ -201,8 +201,19 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
+ 				  const struct imx_media_pixfmt *cc);
+ void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
+ 				 u32 grp_id, int ipu_id);
++//---- Start
++struct v4l2_subdev *
++imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
++				struct fwnode_handle *fwnode);
++struct v4l2_subdev *
++imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
++				 const char *devname);
++//---- End
+ void imx_media_add_video_device(struct imx_media_dev *imxmd,
+ 				struct imx_media_video_dev *vdev);
++//---- Start
++int imx_media_pipeline_csi2_channel(struct media_entity *start_entity);
++//---- End
+ struct media_pad *
+ imx_media_pipeline_pad(struct media_entity *start_entity, u32 grp_id,
+ 		       enum v4l2_buf_type buftype, bool upstream);
+@@ -210,6 +221,15 @@ struct v4l2_subdev *
+ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
+ 			  bool upstream);
+ 
++//---- Start
++struct video_device *
++imx_media_pipeline_video_device(struct media_entity *start_entity,
++				enum v4l2_buf_type buftype, bool upstream);
++struct fwnode_handle *imx_media_get_pad_fwnode(struct media_pad *pad);
++
++//---- End
++
++
+ struct imx_media_dma_buf {
+ 	void          *virt;
+ 	dma_addr_t     phys;
+@@ -251,7 +271,8 @@ void imx_media_unregister_ipu_internal_subdevs(struct imx_media_dev *imxmd);
+ /* imx-media-of.c */
+ int imx_media_add_of_subdevs(struct imx_media_dev *dev,
+ 			     struct device_node *np);
+-
++int imx_media_of_add_csi(struct imx_media_dev *imxmd,
++			 struct device_node *csi_np);
+ /* imx-media-vdic.c */
+ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
+ 					    struct device *ipu_dev,
+@@ -286,6 +307,7 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev);
+ 
+ /* subdev group ids */
+ #define IMX_MEDIA_GRP_ID_CSI2          BIT(8)
++#define IMX_MEDIA_GRP_ID_CSI           BIT(9)
+ #define IMX_MEDIA_GRP_ID_IPU_CSI_BIT   10
+ #define IMX_MEDIA_GRP_ID_IPU_CSI       (0x3 << IMX_MEDIA_GRP_ID_IPU_CSI_BIT)
+ #define IMX_MEDIA_GRP_ID_IPU_CSI0      BIT(IMX_MEDIA_GRP_ID_IPU_CSI_BIT)
+diff --git a/drivers/staging/media/imx/imx8-isi-cap.c b/drivers/staging/media/imx/imx8-isi-cap.c
+index c3d6bbeed6a2..0dba802c16be 100644
+--- a/drivers/staging/media/imx/imx8-isi-cap.c
++++ b/drivers/staging/media/imx/imx8-isi-cap.c
+@@ -8,6 +8,7 @@
+  * Copyright 2019-2021 NXP
+  *
+  */
++#define DEBUG
+ 
+ #include <linux/module.h>
+ #include <linux/kernel.h>
+@@ -54,6 +55,15 @@ struct mxc_isi_fmt mxc_isi_src_formats[] = {
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
++	}, {
++		.name		= "RAW_Y10",
++		.fourcc		= V4L2_PIX_FMT_Y10,
++		.depth		= { 16 },
++		.color		= MXC_ISI_OUT_FMT_RAW16,
++		.memplanes	= 1,
++		.colplanes	= 1,
++		.align		= 2,
++		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+ 	}
+ };
+ 
+@@ -85,7 +95,7 @@ struct mxc_isi_fmt *mxc_isi_find_format(const u32 *pixelformat,
+ 			def_fmt = fmt;
+ 		id++;
+ 	}
+-	return def_fmt;
++	return &mxc_isi_out_formats[0];
+ }
+ 
+ struct mxc_isi_fmt *mxc_isi_get_src_fmt(struct v4l2_subdev_format *sd_fmt)
+@@ -102,7 +112,7 @@ struct mxc_isi_fmt *mxc_isi_get_src_fmt(struct v4l2_subdev_format *sd_fmt)
+ 		index = 1;
+ 	else
+ 		index = 0;
+-	return &mxc_isi_src_formats[index];
++	return &mxc_isi_src_formats[2];
+ }
+ 
+ static inline struct mxc_isi_buffer *to_isi_buffer(struct vb2_v4l2_buffer *v4l2_buf)
+@@ -843,7 +853,7 @@ static int mxc_isi_cap_g_fmt_mplane(struct file *file, void *fh,
+ 	pix->height = dst_f->o_height;
+ 	pix->field = V4L2_FIELD_NONE;
+ 	pix->pixelformat = dst_f->fmt->fourcc;
+-	pix->colorspace = V4L2_COLORSPACE_SRGB;
++	pix->colorspace = V4L2_COLORSPACE_RAW;
+ 	pix->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix->colorspace);
+ 	pix->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+ 	pix->num_planes = dst_f->fmt->memplanes;
+@@ -890,7 +900,7 @@ mxc_isi_cap_fmt_try(struct mxc_isi_cap_dev *isi_cap,
+ 	pix->num_planes = fmt->memplanes;
+ 	pix->pixelformat = fmt->fourcc;
+ 	pix->field = V4L2_FIELD_NONE;
+-	pix->colorspace = V4L2_COLORSPACE_SRGB;
++	pix->colorspace = V4L2_COLORSPACE_RAW;
+ 	pix->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix->colorspace);
+ 	pix->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+ 	memset(pix->reserved, 0x00, sizeof(pix->reserved));
+@@ -960,7 +970,7 @@ static int mxc_isi_source_fmt_init(struct mxc_isi_cap_dev *isi_cap)
+ 
+ 	src_fmt.pad = source_pad->index;
+ 	src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+-	src_fmt.format.code = MEDIA_BUS_FMT_UYVY8_1X16;
++	src_fmt.format.code = V4L2_PIX_FMT_SGRBG10;
+ 	src_fmt.format.width = dst_f->width;
+ 	src_fmt.format.height = dst_f->height;
+ 	ret = v4l2_subdev_call(src_sd, pad, set_fmt, NULL, &src_fmt);
+@@ -1479,7 +1489,7 @@ static int mxc_isi_subdev_get_fmt(struct v4l2_subdev *sd,
+ 	/* Source/Sink pads crop rectangle size */
+ 	mf->width = f->width;
+ 	mf->height = f->height;
+-	mf->colorspace = V4L2_COLORSPACE_SRGB;
++	mf->colorspace = V4L2_COLORSPACE_RAW;
+ 
+ 	mutex_unlock(&isi_cap->lock);
+ 
+diff --git a/drivers/staging/media/imx/imx8-isi-fmt.c b/drivers/staging/media/imx/imx8-isi-fmt.c
+index db11c809a3d3..2dee82549698 100644
+--- a/drivers/staging/media/imx/imx8-isi-fmt.c
++++ b/drivers/staging/media/imx/imx8-isi-fmt.c
+@@ -8,95 +8,14 @@
+ 
+ struct mxc_isi_fmt mxc_isi_out_formats[] = {
+ 	{
+-		.name		= "RGB565",
+-		.fourcc		= V4L2_PIX_FMT_RGB565,
++		.name		= "RAW_Y10",
++		.fourcc		= V4L2_PIX_FMT_Y10,
+ 		.depth		= { 16 },
+-		.color		= MXC_ISI_OUT_FMT_RGB565,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 3,
+-		.mbus_code  = MEDIA_BUS_FMT_RGB565_1X16,
+-	}, {
+-		.name		= "RGB24",
+-		.fourcc		= V4L2_PIX_FMT_RGB24,
+-		.depth		= { 24 },
+-		.color		= MXC_ISI_OUT_FMT_BGR32P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code  = MEDIA_BUS_FMT_RGB888_1X24,
+-	}, {
+-		.name		= "BGR24",
+-		.fourcc		= V4L2_PIX_FMT_BGR24,
+-		.depth		= { 24 },
+-		.color		= MXC_ISI_OUT_FMT_RGB32P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code  = MEDIA_BUS_FMT_BGR888_1X24,
+-	}, {
+-		.name		= "YUYV-16",
+-		.fourcc		= V4L2_PIX_FMT_YUYV,
+-		.depth		= { 16 },
+-		.color		= MXC_ISI_OUT_FMT_YUV422_1P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 3,
+-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
+-	}, {
+-		.name		= "YUV32 (X-Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUV32,
+-		.depth		= { 32 },
+-		.color		= MXC_ISI_OUT_FMT_YUV444_1P8,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_AYUV8_1X32,
+-	}, {
+-		.name		= "NV12 (YUYV)",
+-		.fourcc		= V4L2_PIX_FMT_NV12,
+-		.depth		= { 8, 8 },
+-		.color		= MXC_ISI_OUT_FMT_YUV420_2P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 2,
+-		.align		= 4,
+-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
+-	}, {
+-		.name		= "NV12M (YUYV)",
+-		.fourcc		= V4L2_PIX_FMT_NV12M,
+-		.depth		= { 8, 8 },
+-		.color		= MXC_ISI_OUT_FMT_YUV420_2P8P,
+-		.memplanes	= 2,
+-		.colplanes	= 2,
+-		.align		= 4,
+-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
+-	}, {
+-		.name		= "YUV444M (Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUV444M,
+-		.depth		= { 8, 8, 8 },
+-		.color		= MXC_ISI_OUT_FMT_YUV444_3P8P,
+-		.memplanes	= 3,
+-		.colplanes	= 3,
+-		.align		= 4,
+-		.mbus_code	= MEDIA_BUS_FMT_YUV8_1X24,
+-	}, {
+-		.name		= "xBGR32",
+-		.fourcc		= V4L2_PIX_FMT_XBGR32,
+-		.depth		= { 32 },
+-		.color		= MXC_ISI_OUT_FMT_XRGB32,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
+-	}, {
+-		.name		= "ABGR32",
+-		.fourcc		= V4L2_PIX_FMT_ABGR32,
+-		.depth		= { 32 },
+-		.color		= MXC_ISI_OUT_FMT_ARGB32,
++		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
++		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+ 	}
+ };
+ 
+diff --git a/drivers/staging/media/imx/imx8-isi-m2m.c b/drivers/staging/media/imx/imx8-isi-m2m.c
+index 792665b206a8..625583348aa0 100644
+--- a/drivers/staging/media/imx/imx8-isi-m2m.c
++++ b/drivers/staging/media/imx/imx8-isi-m2m.c
+@@ -42,40 +42,14 @@
+ struct mxc_isi_fmt mxc_isi_input_formats[] = {
+ 	/* Pixel link input format */
+ 	{
+-		.name		= "XBGR32",
+-		.fourcc		= V4L2_PIX_FMT_XBGR32,
+-		.depth		= { 32 },
+-		.color =	MXC_ISI_M2M_IN_FMT_XRGB8,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "RGB565",
+-		.fourcc		= V4L2_PIX_FMT_RGB565,
++		.name		= "BA10",
++		.fourcc		= V4L2_PIX_FMT_SGRBG10,
+ 		.depth		= { 16 },
+-		.color =	MXC_ISI_M2M_IN_FMT_RGB565,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "YUV32 (X-Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUV32,
+-		.depth		= { 32 },
+-		.color = MXC_ISI_M2M_IN_FMT_YUV444_1P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "YUV16 (X-Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUYV,
+-		.depth		= { 16 },
+-		.color = MXC_ISI_M2M_IN_FMT_YUV422_1P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "RGBA (R-G-B-A)",
+-		.fourcc		= V4L2_PIX_FMT_RGBA32,
+-		.depth		= { 32 },
+-		.color = MXC_ISI_M2M_IN_FMT_XBGR8,
++		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
++		.align		= 2,
++		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
+ 	}
+ };
+ 
+@@ -613,6 +587,7 @@ static int mxc_isi_m2m_open(struct file *file)
+ 
+ 	pm_runtime_get_sync(dev);
+ 
++	mxc_isi_channel_init(mxc_isi);
+ 	/* lock host data */
+ 	mxc_isi->m2m_enabled = true;
+ 	goto unlock;
+@@ -751,6 +726,7 @@ static int mxc_isi_m2m_s_fmt_vid_out(struct file *file, void *priv,
+ 				 struct v4l2_format *f)
+ {
+ 	struct mxc_isi_m2m_dev *isi_m2m = video_drvdata(file);
++	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_m2m->pdev);
+ 	struct v4l2_fh *fh = file->private_data;
+ 	struct mxc_isi_frame *frame = &isi_m2m->src_f;
+ 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
+@@ -811,6 +787,7 @@ static int mxc_isi_m2m_s_fmt_vid_out(struct file *file, void *priv,
+ 	frame->sizeimage[0] = frame->height * frame->bytesperline[0];
+ 
+ 	set_frame_bounds(frame, pix->width, pix->height);
++	mxc_isi_m2m_config_src(mxc_isi, frame);
+ 
+ 	isi_m2m->colorspace = pix->colorspace;
+ 	isi_m2m->xfer_func = pix->xfer_func;
+@@ -824,6 +801,7 @@ static int mxc_isi_m2m_s_fmt_vid_cap(struct file *file, void *priv,
+ 				 struct v4l2_format *f)
+ {
+ 	struct mxc_isi_m2m_dev *isi_m2m = video_drvdata(file);
++	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_m2m->pdev);
+ 	struct v4l2_fh *fh = file->private_data;
+ 	struct mxc_isi_frame *frame = &isi_m2m->dst_f;
+ 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
+@@ -921,6 +899,7 @@ static int mxc_isi_m2m_s_fmt_vid_cap(struct file *file, void *priv,
+ 	memcpy(&isi_m2m->pix, pix, sizeof(*pix));
+ 
+ 	set_frame_bounds(frame, pix->width, pix->height);
++	mxc_isi_m2m_config_dst(mxc_isi, frame);
+ 
+ 	return 0;
+ }

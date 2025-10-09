@@ -1,0 +1,28 @@
+# 99-esat-perms.rules -- set group/mode for peripheral devices
+# Keep MODE 0660 (owner root, group X read/write). Use 0666 only if you really want world-write.
+
+# I2C device nodes
+KERNEL=="i2c-[0-9]*", MODE="0660", GROUP="i2c"
+
+# SPI device nodes
+KERNEL=="spidev*", MODE="0660", GROUP="spi"
+
+# GPIO character devices
+KERNEL=="gpiochip*", MODE="0660", GROUP="gpio"
+
+# Serial adapters (USB-serial and ACM)
+SUBSYSTEM=="tty", KERNEL=="ttyUSB[0-9]*", MODE="0660", GROUP="dialout"
+SUBSYSTEM=="tty", KERNEL=="ttyACM[0-9]*", MODE="0660", GROUP="dialout"
+SUBSYSTEM=="tty", KERNEL=="ttyS[0-9]*", MODE="0660", GROUP="dialout"
+
+# Video & Audio
+KERNEL=="video*", MODE="0660", GROUP="video"
+SUBSYSTEM=="sound", KERNEL=="pcmC[0-9]*", MODE="0660", GROUP="audio"
+
+# USB device nodes (/dev/bus/usb/*)
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", MODE="0664", GROUP="plugdev"
+
+# Generic CAN character device (if any driver exposes /dev/canX)
+KERNEL=="can[0-9]*", MODE="0660", GROUP="can"
+
+# If some drivers create spidev or other non-standard nodes, add matches as needed.

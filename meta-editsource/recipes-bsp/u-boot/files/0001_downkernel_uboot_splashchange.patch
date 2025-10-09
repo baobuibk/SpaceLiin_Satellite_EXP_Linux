@@ -1,0 +1,20 @@
+diff --git a/board/compulab/ucm-imx93/ucm-imx93.c b/board/compulab/ucm-imx93/ucm-imx93.c
+index 3695ca0f460..f3b3d180eec 100644
+--- a/board/compulab/ucm-imx93/ucm-imx93.c
++++ b/board/compulab/ucm-imx93/ucm-imx93.c
+@@ -184,6 +184,15 @@ int board_late_init(void)
+ 	board_get_mac_from_eeprom(1);
+ 
+ 	printf("%s [ 0x%llx ]\n",__func__,gd->ram_size);
++        printf("\n");
++        printf("+----------------------------------------------+\n");
++        printf("|   Target Board: UCM - i.MX93 EXP-Satellite   |\n");
++        printf("|          BEE-1006 - PAY-EXP V1.1.0           |\n");
++        printf("|                  Booting-up!                 |\n");
++        printf("+----------------------------------------------+\n");
++        printf("\n");
++        printf("U-Boot Version: Rev 1.0.1\n");
++        printf("Kernel Version: Rev 1.0.1\n");
+ 	return 0;
+ }
+ 

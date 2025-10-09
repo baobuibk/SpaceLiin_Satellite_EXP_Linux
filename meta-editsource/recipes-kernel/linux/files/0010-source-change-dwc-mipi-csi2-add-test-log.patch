@@ -1,0 +1,83 @@
+diff --git a/drivers/staging/media/imx/dwc-mipi-csi2.c b/drivers/staging/media/imx/dwc-mipi-csi2.c
+index 527614574b7a..a6cb0d04c20c 100644
+--- a/drivers/staging/media/imx/dwc-mipi-csi2.c
++++ b/drivers/staging/media/imx/dwc-mipi-csi2.c
+@@ -618,7 +618,7 @@ static void dwc_mipi_csi2_ipi_config_htiming(struct dwc_mipi_csi2_host *csi2h)
+ 	val = DWC_MIPI_CSI2_IPI_HLINE_TIME_VAL(ipi_cfg->hline_time);
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_HLINE_TIME, val);
+ 
+-	dev_dbg(dev, "hsa_time=%d, hbp_time=%d, hsd_time=%d, hline_time=%d\n",
++	dev_info(dev, "hsa_time=%d, hbp_time=%d, hsd_time=%d, hline_time=%d\n",
+ 		ipi_cfg->hsa_time, ipi_cfg->hbp_time,
+ 		ipi_cfg->hsd_time, ipi_cfg->hline_time);
+ }
+@@ -641,7 +641,7 @@ static void dwc_mipi_csi2_ipi_config_vtiming(struct dwc_mipi_csi2_host *csi2h)
+ 	val = DWC_MIPI_CSI2_IPI_VACTIVE_LINES_VAL(ipi_cfg->vactive_lines);
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_VACTIVE_LINES, val);
+ 
+-	dev_dbg(dev, "vsa_lines=%d, vbp_lines=%d, vsd_lines=%d, active_lines=%d\n",
++	dev_info(dev, "vsa_lines=%d, vbp_lines=%d, vsd_lines=%d, active_lines=%d\n",
+ 		ipi_cfg->vsa_lines, ipi_cfg->vbp_lines,
+ 		ipi_cfg->vfp_lines, ipi_cfg->vactive_lines);
+ }
+@@ -851,7 +851,7 @@ static int dwc_mipi_csi2_host_ipi_config(struct dwc_mipi_csi2_host *csi2h)
+ 		val &= ~DWC_MIPI_CSI2_IPI_VCID_VC_2;
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_VCID, val);
+ 
+-	dev_dbg(dev, "data_type:0x%x, virtual chan: %d\n",
++	dev_info(dev, "data_type:0x%x, virtual chan: %d\n",
+ 		ipi_cfg->data_type, ipi_cfg->vir_chan);
+ 
+ 	/* 1. Select the IPI mode, camera timing by default
+@@ -880,7 +880,7 @@ static int dwc_mipi_csi2_host_ipi_config(struct dwc_mipi_csi2_host *csi2h)
+ 	if (ipi_cfg->controller_mode || csi2h->ppi_pg_enable)
+ 		dwc_mipi_csi2_ipi_config_vtiming(csi2h);
+ 
+-	dev_dbg(dev, "ipi mode: %s, color_mode: %s\n",
++	dev_info(dev, "ipi mode: %s, color_mode: %s\n",
+ 		ipi_cfg->controller_mode ? "controller" : "camera",
+ 		ipi_cfg->color_mode_16   ? "color mode 16" : "color mode 48");
+ 
+@@ -1045,7 +1045,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 	of_property_read_u32(node, "cfg-clk-range", &csi2h->cfgclkfreqrange);
+ 	of_property_read_u32(node, "hs-clk-range", &csi2h->hsclkfreqrange);
+ 
+-	dev_dbg(dev, "cfgclkfreqrange=%d, hsfreqrange=%d\n",
++	dev_info(dev, "cfgclkfreqrange=%d, hsfreqrange=%d\n",
+ 		 csi2h->cfgclkfreqrange, csi2h->hsclkfreqrange);
+ 	return 0;
+ }
+@@ -1124,7 +1124,7 @@ static int dwc_mipi_csi2_get_fmt(struct v4l2_subdev *sd,
+ 		case MEDIA_BUS_FMT_SGBRG10_1X10:
+ 		case MEDIA_BUS_FMT_SBGGR10_1X10:
+ 			csi2h->ipi_cfg[0].data_type = DT_RAW10;
+-			csi2h->ipi_cfg[0].color_mode_16 = 0;
++			csi2h->ipi_cfg[0].color_mode_16 = 1;
+ 			break;
+ 		case MEDIA_BUS_FMT_SRGGB12_1X12:
+ 		case MEDIA_BUS_FMT_SGRBG12_1X12:
+@@ -1232,15 +1232,24 @@ static int dwc_mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
+ 
+ 	if (enable) {
+ 		pm_runtime_get_sync(dev);
++		dev_info(&csi2h->pdev->dev, "Pass step 1: pm_runtime_get_sync");
+ 		dwc_mipi_csi2_host_startup(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass step 2: csi2_host_startup");
+ 		dwc_mipi_csi2_host_init(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass step 3: csi2_host_init");
+ 		dwc_mipi_csi2_host_ipi_config(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass step 4: csi2_host_ipi_config");
+ 		dwc_mipi_csi2_host_hs_rx_start(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass step 5: mipi_cs2_host_hs_rx_start");
+ 		disp_mix_gasket_config(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass step 6: disp_mix_gasket_config");
+ 		dwc_mipi_csi2_dump(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass step 7: dwc_mipi_csi2_dump");
+ 		gasket_dump(csi2h);
++		dev_info(&csi2h->pdev->dev, "Pass final step: gasket_dump");
+ 	} else {
+ 		dwc_mipi_csi2_host_hs_rx_stop(csi2h);
++		dev_info(&csi2h->pdev->dev, "Stop 1: dwc_mipi_csi2_host_hs_rx_stop");
+ 		pm_runtime_put(dev);
+ 	}
+ 

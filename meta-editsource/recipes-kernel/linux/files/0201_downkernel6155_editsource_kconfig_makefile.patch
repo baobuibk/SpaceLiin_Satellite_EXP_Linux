@@ -1,0 +1,30 @@
+diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
+index b6ba80f8962c..d7541765e6dc 100644
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -41,6 +41,13 @@ config VIDEO_APTINA_PLL
+ config VIDEO_CCS_PLL
+ 	tristate
+ 
++config VIDEO_AR2020
++        tristate "ON Semiconductor AR2020 camera driver"
++        depends on I2C && VIDEO_DEV
++        help
++          Support for ON Semiconductor AR2020 camera sensor connected over I2C.
++          Say Y or M to enable driver.
++
+ config VIDEO_AR0521
+ 	tristate "ON Semiconductor AR0521 sensor support"
+ 	depends on I2C && VIDEO_DEV
+diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
+index 2f4a577d50cc..34d0ae5517ef 100644
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -19,6 +19,7 @@ obj-$(CONFIG_VIDEO_ADV7842) += adv7842.o
+ obj-$(CONFIG_VIDEO_AK7375) += ak7375.o
+ obj-$(CONFIG_VIDEO_AK881X) += ak881x.o
+ obj-$(CONFIG_VIDEO_APTINA_PLL) += aptina-pll.o
++obj-$(CONFIG_VIDEO_AR2020) += ar2020.o
+ obj-$(CONFIG_VIDEO_AR0521) += ar0521.o
+ obj-$(CONFIG_VIDEO_BT819) += bt819.o
+ obj-$(CONFIG_VIDEO_BT856) += bt856.o

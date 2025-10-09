@@ -1,0 +1,97 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2023 Compulab
+ */
+
+/dts-v1/;
+
+#include "ucm-imx93.dtsi"
+// #include "ucm-imx93-lvds.dtsi"
+
+/ {
+	model = "UCM-i.MX93 Satellite Board, build-in-lvds";
+	compatible = "compulab,ucm-imx93-satellite", "fsl,imx93";
+};
+
+/* ------------------------------------------------ */
+/* Disable UART2 (DB9) */
+&lpuart2 {
+        status = "disabled";
+};
+
+/* Disable UART5 (BT) */
+&lpuart5 {
+        status = "disabled";
+};
+
+/* Enable CM33 remoteproc */
+&cm33 {
+        status = "okay";
+};
+
+/* ------------------------------------------------ */
+/* I2C3 + AR2020 camera */
+&lpi2c3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_lpi2c3>;
+	pinctrl-1 = <&pinctrl_lpi2c3>;
+	status = "okay";
+
+	ar2020: mipi@36 {
+		compatible = "onsemi,ar2020";
+		reg = <0x36>;
+
+		/* clock source sensor */
+		clocks = <&clk IMX93_CLK_MIPI_PHY_CFG>;
+		clock-names = "xvclk";
+		clock-frequency = <27000000>;
+                mclk = <24000000>;
+                mclk_source = <0>;
+                mipi_csi;
+                camera_mipi_lanes = <2>;
+		status = "okay";
+
+		port {
+			ar2020_mipi_ep: endpoint {
+				remote-endpoint = <&mipi_csi_ep>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				#clock-noncontinuous;
+				#link-frequencies = /bits/ 64 <360000000>;
+			};
+		};
+	};
+};
+
+/* MIPI CSI interface */
+&mipi_csi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	port@0 {
+		reg = <0>;
+		mipi_csi_ep: endpoint {
+			remote-endpoint = <&ar2020_mipi_ep>;
+			data-lanes = <2>;
+                        cfg-clk-range = <28>;
+                        hs-clk-range = <0x2b>;
+#			clock-lanes = <0>;
+			bus-type = <4>; /* MIPI CSI-2 */
+#			clock-noncontinuous;
+#			link-frequencies = /bits/ 64 <360000000>;
+		};
+	};
+};
+
+/* Disable default device */
+&lpi2c3 {
+	wm8962@1a { status = "disabled"; };
+	pca9555@20 { status = "disabled"; };
+	eeprom@54 { status = "disabled"; };
+	goodix@5d { status = "disabled"; };
+	mipi2@42 { status = "disabled"; };
+};

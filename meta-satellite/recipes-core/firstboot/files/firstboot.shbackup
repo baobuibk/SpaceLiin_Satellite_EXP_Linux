@@ -1,0 +1,33 @@
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          firstboot
+# Default-Start:     2 3 4 5
+# Default-Stop:
+# Short-Description: First boot setup
+### END INIT INFO
+
+FLAG_FILE="/etc/firstboot.done"
+
+case "$1" in
+  start)
+    if [ ! -f "$FLAG_FILE" ]; then
+        echo "[firstboot] Running first boot setup..."
+
+        # Copy file to esat93
+        if id esat93 >/dev/null 2>&1; then
+            cp -r /home/root/skel_esat93/* /home/esat93/
+            chown -R esat93:esat93 /home/esat93
+            echo "[firstboot] Files copied to /home/esat93"
+        fi
+
+        # Other user do
+
+        # Set flag that do not run again
+        touch "$FLAG_FILE"
+    fi
+    ;;
+  stop|restart|reload)
+    ;;
+esac
+
+exit 0

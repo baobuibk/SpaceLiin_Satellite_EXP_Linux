@@ -1,0 +1,39 @@
+diff --git a/drivers/staging/media/imx/imx8-isi-hw.c b/drivers/staging/media/imx/imx8-isi-hw.c
+index 72e7cfefa353..02b3d36858b4 100644
+--- a/drivers/staging/media/imx/imx8-isi-hw.c
++++ b/drivers/staging/media/imx/imx8-isi-hw.c
+@@ -144,22 +144,22 @@ EXPORT_SYMBOL_GPL(is_buf_active);
+ 
+ static void chain_buf(struct mxc_isi_dev *mxc_isi, struct mxc_isi_frame *frm)
+ {
+-	u32 val;
+-
+-	if (frm->o_width > ISI_2K) {
+-		val = readl(mxc_isi->regs + CHNL_CTRL);
+-		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
+-		val |= (CHNL_CTRL_CHAIN_BUF_2_CHAIN << CHNL_CTRL_CHAIN_BUF_OFFSET);
+-		writel(val, mxc_isi->regs + CHNL_CTRL);
+-		if (mxc_isi->chain)
+-			regmap_write(mxc_isi->chain, CHNL_CTRL, CHNL_CTRL_CLK_EN_MASK);
+-		mxc_isi->chain_buf = 1;
+-	} else {
++	u32 val = 0;
++
++//	if (frm->o_width > ISI_2K) {
++//		val = readl(mxc_isi->regs + CHNL_CTRL);
++//		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
++//		val |= (CHNL_CTRL_CHAIN_BUF_2_CHAIN << CHNL_CTRL_CHAIN_BUF_OFFSET);
++//		writel(val, mxc_isi->regs + CHNL_CTRL);
++//		if (mxc_isi->chain)
++//			regmap_write(mxc_isi->chain, CHNL_CTRL, CHNL_CTRL_CLK_EN_MASK);
++//		mxc_isi->chain_buf = 1;
++//	} else {
+ 		val = readl(mxc_isi->regs + CHNL_CTRL);
+ 		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
+ 		writel(val, mxc_isi->regs + CHNL_CTRL);
+ 		mxc_isi->chain_buf = 0;
+-	}
++//	}
+ }
+ 
+ struct device *mxc_isi_dev_get_parent(struct platform_device *pdev)

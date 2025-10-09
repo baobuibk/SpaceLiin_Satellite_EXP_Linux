@@ -1,0 +1,11 @@
+DESCRIPTION = "Enable g_ether module autoload"
+LICENSE = "CLOSED"
+
+SRC_URI = ""
+
+do_install() {
+    install -d ${D}${sysconfdir}/modules-load.d
+    echo "g_ether" > ${D}${sysconfdir}/modules-load.d/g_ether.conf
+}
+
+FILES:${PN} += "${sysconfdir}/modules-load.d/g_ether.conf"

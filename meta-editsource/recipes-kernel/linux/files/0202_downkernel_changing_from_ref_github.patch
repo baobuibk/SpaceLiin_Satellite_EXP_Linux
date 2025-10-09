@@ -1,0 +1,75 @@
+diff --git a/drivers/staging/media/imx/dwc-mipi-csi2.c b/drivers/staging/media/imx/dwc-mipi-csi2.c
+index cd5198e6ec4e..1bc9f7b24455 100644
+--- a/drivers/staging/media/imx/dwc-mipi-csi2.c
++++ b/drivers/staging/media/imx/dwc-mipi-csi2.c
+@@ -401,6 +401,12 @@ static const struct csi2h_pix_format dwc_csi2h_formats[] = {
+ 	}, {
+ 		.code = MEDIA_BUS_FMT_SBGGR12_1X12,
+ 		.fmt_reg = 0x2C,
++	}, {
++		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
++		.fmt_reg = 0x2B,
++	}, {
++		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
++		.fmt_reg = 0x2B,
+ 	}, {
+ 		/* sentinel */
+ 	}
+@@ -1115,6 +1121,18 @@ static int dwc_mipi_csi2_get_fmt(struct v4l2_subdev *sd,
+ 	}
+ 
+ 	memcpy(mf, &format->format, sizeof(struct v4l2_mbus_framefmt));
++
++	pr_info("dwc-mipi format code:%d\n", mf->code);
++	switch(mf->code){
++		case MEDIA_BUS_FMT_SBGGR10_1X10:
++  		case MEDIA_BUS_FMT_SGBRG10_1X10:
++  		case MEDIA_BUS_FMT_SGRBG10_1X10:
++  		case MEDIA_BUS_FMT_SRGGB10_1X10:
++  			csi2h->ipi_cfg[0].data_type = DT_RAW10;
++  			csi2h->ipi_cfg[0].color_mode_16 = 1;
++  			break;
++	}
++
+ 	return 0;
+ }
+ 
+@@ -1142,14 +1160,17 @@ static int dwc_mipi_csi2_set_fmt(struct v4l2_subdev *sd,
+ 		v4l2_err(&csi2h->sd, "%s, No remote subdev found!\n", __func__);
+ 		return -EINVAL;
+ 	}
+-
++	
++	v4l2_info(&csi2h->sd, "%s: Before sensor call - code=0x%x\n", __func__ , mf->code);
+ 	format->pad = source_pad->index;
++	
+ 	ret = v4l2_subdev_call(sen_sd, pad, set_fmt, NULL, format);
+ 	if (ret < 0) {
+ 		v4l2_err(&csi2h->sd, "%s, set sensor format fail\n", __func__);
+ 		return -EINVAL;
+ 	}
+ 
++	v4l2_info(&csi2h->sd, "%s: After sensor call - code=0x%x\n", __func__ , mf->code);
+ 	csi2h_fmt = find_csi2h_format(mf->code);
+ 	if (!csi2h_fmt) {
+ 		csi2h_fmt = &dwc_csi2h_formats[0];
+diff --git a/drivers/staging/media/imx/imx8-isi-fmt.c b/drivers/staging/media/imx/imx8-isi-fmt.c
+index 396009407382..5bc181913f93 100644
+--- a/drivers/staging/media/imx/imx8-isi-fmt.c
++++ b/drivers/staging/media/imx/imx8-isi-fmt.c
+@@ -9,13 +9,13 @@
+ struct mxc_isi_fmt mxc_isi_out_formats[] = {
+ 	{
+ 		.name		= "RAW10P",
+-		.fourcc		= V4L2_PIX_FMT_SBGGR10,
++		.fourcc		= V4L2_PIX_FMT_SGRBG10,
+ 		.depth		= { 16 },
+ 		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_SBGGR10_1X10,
++		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
+ 	}
+ };
+ 

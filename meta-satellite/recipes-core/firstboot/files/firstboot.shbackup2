@@ -1,0 +1,33 @@
+#!/bin/sh
+# firstboot.sh - copy skeleton files from /home/root/skel_* to each user's home on first boot
+
+FLAG=/etc/firstboot.done
+
+if [ -f "$FLAG" ]; then
+    exit 0
+fi
+
+echo "[FirstBoot] Starting"
+
+# for each skel dir under /home/root/skel_*
+for skel in /home/root/skel_*; do
+    [ -d "$skel" ] || continue
+    # derive username from skel name: skel_esat93 -> esat93
+    username=$(basename "$skel" | sed 's/^skel_//')
+    HOME_DIR="/home/$username"
+
+    if id "$username" >/dev/null 2>&1; then
+        echo "[FirstBoot] Installing $skel -> $HOME_DIR"
+        install -d "$HOME_DIR"
+        cp -a "$skel/." "$HOME_DIR/"
+        chown -R "$username:$username" "$HOME_DIR"
+    else
+        echo "[FirstBoot] User $username not found; skipping"
+    fi
+done
+
+# Mark as done
+touch "$FLAG"
+echo "[FirstBoot] Done"
+
+exit 0

@@ -1,0 +1,3615 @@
+diff --git a/drivers/staging/media/imx/Kconfig b/drivers/staging/media/imx/Kconfig
+index 4d67f6a01735..58f3ebd53bfb 100644
+--- a/drivers/staging/media/imx/Kconfig
++++ b/drivers/staging/media/imx/Kconfig
+@@ -1,11 +1,10 @@
+ # SPDX-License-Identifier: GPL-2.0
+ config VIDEO_IMX_MEDIA
+-	tristate "i.MX5/6 V4L2 media drivers"
++	tristate "i.MX5/6 V4L2 media core driver"
+ 	depends on ARCH_MXC || COMPILE_TEST
+ 	depends on HAS_DMA
+ 	depends on VIDEO_DEV
+ 	depends on VIDEO_DEV
+-	depends on IMX_IPUV3_CORE
+ 	select MEDIA_CONTROLLER
+ 	select V4L2_FWNODE
+ 	select V4L2_MEM2MEM_DEV
+@@ -13,7 +12,26 @@ config VIDEO_IMX_MEDIA
+ 	select VIDEO_V4L2_SUBDEV_API
+ 	help
+ 	  Say yes here to enable support for video4linux media controller
+-	  drivers for the i.MX5/6 SOC.
++	  driver for the i.MX5/6 SOC.
++
++if VIDEO_IMX_MEDIA
++menu "i.MX5/6/7/8 Media Sub devices"
++
++config VIDEO_IMX_CSI
++	tristate "i.MX5/6 Camera Sensor Interface driver"
++	depends on IMX_IPUV3_CORE
++	default y
++	help
++	  A video4linux camera sensor interface driver for i.MX5/6.
++
++config VIDEO_IMX7_CSI
++	tristate "i.MX6UL/L / i.MX7 / i.MX8M Camera Sensor Interface driver"
++	default y
++	help
++	  Enable support for video4linux camera sensor interface driver for
++	  i.MX6UL/L, i.MX7 or i.MX8M.
++endmenu
++endif
+ 
+ config VIDEO_IMX_CAPTURE
+ 	tristate "i.MX V4L2 media core driver"
+diff --git a/drivers/staging/media/imx/Makefile b/drivers/staging/media/imx/Makefile
+index 43bbbf624e88..4a1cb3c7ec8d 100644
+--- a/drivers/staging/media/imx/Makefile
++++ b/drivers/staging/media/imx/Makefile
+@@ -13,16 +13,15 @@ imx8-capture-objs := imx8-isi-core.o
+ imx8-isi-capture-objs := imx8-isi-fmt.o imx8-isi-cap.o
+ imx8-isi-mem2mem-objs := imx8-isi-fmt.o imx8-isi-m2m.o
+ obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx-media-common.o
+-obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx6-media.o
+-obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx6-media-csi.o
+-obj-$(CONFIG_VIDEO_IMX_MEDIA) += imx6-mipi-csi2.o
+ 
++obj-$(CONFIG_VIDEO_IMX_CSI) += imx6-media.o
++obj-$(CONFIG_VIDEO_IMX_CSI) += imx6-media-csi.o
++obj-$(CONFIG_VIDEO_IMX_CSI) += imx6-mipi-csi2.o
++
++obj-$(CONFIG_VIDEO_IMX7_CSI) += imx7-media-csi.o
++obj-$(CONFIG_VIDEO_IMX7_CSI) += imx8mq-mipi-csi2.o
+ obj-$(CONFIG_IMX8_MIPI_CSI2) 	  += imx8-mipi-csi2.o
+ obj-$(CONFIG_IMX8_MIPI_CSI2_SAM)  += imx8-mipi-csi2-sam.o
+-obj-$(CONFIG_DWC_MIPI_CSI2_HOST) += dwc-mipi-csi2.o
+-
+-obj-y += hdmirx/
+-
+ obj-$(CONFIG_IMX8_CAPTURE_DRIVER) += imx8-capture.o
+ obj-$(CONFIG_IMX8_ISI_CORE) += imx8-capture.o
+ obj-$(CONFIG_IMX8_ISI_CAPTURE) 	  += imx8-isi-capture.o
+@@ -31,3 +30,6 @@ obj-$(CONFIG_IMX8_ISI_HW) 	  += imx8-isi-hw.o
+ obj-$(CONFIG_GMSL_MAX9286)	  += gmsl-max9286.o
+ obj-$(CONFIG_IMX8_MEDIA_DEVICE)   += imx8-media-dev.o
+ obj-$(CONFIG_IMX8_PARALLEL_CSI)	  += imx8-parallel-csi.o
++obj-$(CONFIG_DWC_MIPI_CSI2_HOST) += dwc-mipi-csi2.o
++
++obj-y += hdmirx/
+diff --git a/drivers/staging/media/imx/TODO b/drivers/staging/media/imx/TODO
+index 11c9e10d34ae..5d3a337c8702 100644
+--- a/drivers/staging/media/imx/TODO
++++ b/drivers/staging/media/imx/TODO
+@@ -2,6 +2,18 @@
+ - The Frame Interval Monitor could be exported to v4l2-core for
+   general use.
+ 
++- The CSI subdevice parses its nearest upstream neighbor's device-tree
++  bus config in order to setup the CSI. Laurent Pinchart argues that
++  instead the CSI subdev should call its neighbor's g_mbus_config op
++  (which should be propagated if necessary) to get this info. However
++  Hans Verkuil is planning to remove the g_mbus_config op. For now this
++  driver uses the parsed DT bus config method until this issue is
++  resolved.
++
++  2020-06: g_mbus has been removed in favour of the get_mbus_config pad
++  operation which should be used to avoid parsing the remote endpoint
++  configuration.
++
+ - This media driver supports inheriting V4L2 controls to the
+   video capture devices, from the subdevices in the capture device's
+   pipeline. The controls for each capture device are updated in the
+@@ -11,3 +23,32 @@
+ - Similarly to the legacy control handling, legacy format handling where
+   formats on the video nodes are influenced by the active format of the
+   connected subdev should be removed.
++
++- i.MX7: all of the above, since it uses the imx media core
++
++- i.MX7: use Frame Interval Monitor
++
++- imx7-media-csi: Restrict the supported formats list to the SoC version.
++
++  The imx7 CSI bridge can be configured to sample pixel components from the Rx
++  queue in single (8bpp) or double (16bpp) component modes. Image format
++  variants with different sample sizes (ie YUYV_2X8 vs YUYV_1X16) determine the
++  pixel components sampling size per each clock cycle and their packing mode
++  (see imx7_csi_configure() for details).
++
++  As the imx7 CSI bridge can be interfaced with different IP blocks depending on
++  the SoC model it is integrated on, the Rx queue sampling size should match
++  the size of the samples transferred by the transmitting IP block.
++
++  To avoid mis-configurations of the capture pipeline, the enumeration of the
++  supported formats should be restricted to match the pixel source transmitting
++  mode.
++
++  Example: i.MX8MM SoC integrates the CSI bridge with the Samsung CSIS CSI-2
++  receiver which operates in dual pixel sampling mode. The CSI bridge should
++  only expose the 1X16 formats variant which instructs it to operate in dual
++  pixel sampling mode. When the CSI bridge is instead integrated on an i.MX7,
++  which supports both serial and parallel input, it should expose both variants.
++
++  This currently only applies to YUYV formats, but other formats might need
++  to be handled in the same way.
+diff --git a/drivers/staging/media/imx/dwc-mipi-csi2.c b/drivers/staging/media/imx/dwc-mipi-csi2.c
+index 8a24b0231596..dbfb4c61d531 100644
+--- a/drivers/staging/media/imx/dwc-mipi-csi2.c
++++ b/drivers/staging/media/imx/dwc-mipi-csi2.c
+@@ -410,40 +410,42 @@ static void dwc_mipi_csi2_dump(struct dwc_mipi_csi2_host *csi2h)
+ {
+ 	struct device *dev = &csi2h->pdev->dev;
+ 
+-	dev_dbg(dev, "DWC CSI2 Version: %#x\n", dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_VERSION));
+-	dev_dbg(dev, "DWC CSI2 lanes: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_N_LANES));
+-	dev_dbg(dev, "DWC CSI2 HOST RESETN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_HOST_RESETN));
+-	dev_dbg(dev, "DWC CSI2 INT STATUS MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_MAIN));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_1));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_2));
+-	dev_dbg(dev, "DWC CSI2 DPHY CFG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_CFG));
+-	dev_dbg(dev, "DWC CSI2 DPHY MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_MODE));
+-	dev_dbg(dev, "DWC CSI2 INT STATUS AP MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_AP_MAIN));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS VC1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_1));
+-	dev_dbg(dev, "DWC CSI2 DATA IDS VC2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_2));
+-	dev_dbg(dev, "DWC CSI2 DPHY SHUTDOWN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_SHUTDOWNZ));
+-	dev_dbg(dev, "DWC CSI2 DPHY RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RSTZ));
+-	dev_dbg(dev, "DWC CSI2 DPHY RX STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RX_STATUS));
+-	dev_dbg(dev, "DWC CSI2 DPHY STOP STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_STOPSTATE));
+-	dev_dbg(dev, "DWC CSI2 DPHY TEST CTRL0: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL0));
+-	dev_dbg(dev, "DWC CSI2 DPHY TEST CTRL1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL1));
+-	dev_dbg(dev, "DWC CSI2 PPI PG PATTERN HIGH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_VRES));
+-	dev_dbg(dev, "DWC CSI2 PPI PG PATTERN WIDTH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_HRES));
+-	dev_dbg(dev, "DWC CSI2 PPI PG CONFIG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_CONFIG));
+-	dev_dbg(dev, "DWC CSI2 PPI PG ENABLE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_ENABLE));
+-	dev_dbg(dev, "DWC CSI2 PPI PG STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_STATUS));
+-	dev_dbg(dev, "DWC CSI2 IPI MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_MODE));
+-	dev_dbg(dev, "DWC CSI2 IPI VCID: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_VCID));
+-	dev_dbg(dev, "DWC CSI2 IPI DATA TYPE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_DATA_TYPE));
+-	dev_dbg(dev, "DWC CSI2 IPI SOFT RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_SOFTRSTN));
+-	dev_dbg(dev, "DWC CSI2 IPI ADV FEATURE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_ADV_FEATURES));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_PHY_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xE4));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_PKT_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xF4));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_PHY: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x114));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_IPI_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x144));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_BNDRY_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x284));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_SEQ_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x294));
+-	dev_dbg(dev, "DWC CSI2 INT_MSK_DATA_ID: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x2c4));
++	dev_info(dev, "DWC CSI2 Version: %#x\n", dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_VERSION));
++	dev_info(dev, "DWC CSI2 lanes: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_N_LANES));
++	dev_info(dev, "DWC CSI2 HOST RESETN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_HOST_RESETN));
++	dev_info(dev, "DWC CSI2 INT STATUS MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_MAIN));
++	dev_info(dev, "DWC CSI2 DATA IDS1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_1));
++	dev_info(dev, "DWC CSI2 DATA IDS2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_2));
++	dev_info(dev, "DWC CSI2 DPHY CFG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_CFG));
++	dev_info(dev, "DWC CSI2 DPHY MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_MODE));
++	dev_info(dev, "DWC CSI2 INT STATUS AP MAIN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_AP_MAIN));
++	dev_info(dev, "DWC CSI2 DATA IDS VC1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_1));
++	dev_info(dev, "DWC CSI2 DATA IDS VC2: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DATA_IDS_VC_2));
++	dev_info(dev, "DWC CSI2 DPHY SHUTDOWN: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_SHUTDOWNZ));
++	dev_info(dev, "DWC CSI2 DPHY RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RSTZ));
++	dev_info(dev, "DWC CSI2 DPHY RX STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_RX_STATUS));
++	dev_info(dev, "DWC CSI2 DPHY STOP STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_STOPSTATE));
++	dev_info(dev, "DWC CSI2 DPHY TEST CTRL0: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL0));
++	dev_info(dev, "DWC CSI2 DPHY TEST CTRL1: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_DPHY_TEST_CTRL1));
++	dev_info(dev, "DWC CSI2 PPI PG PATTERN HIGH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_VRES));
++	dev_info(dev, "DWC CSI2 PPI PG PATTERN WIDTH: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_PATTERN_HRES));
++	dev_info(dev, "DWC CSI2 PPI PG CONFIG: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_CONFIG));
++	dev_info(dev, "DWC CSI2 PPI PG ENABLE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_ENABLE));
++	dev_info(dev, "DWC CSI2 PPI PG STATUS: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_PPI_PG_STATUS));
++	dev_info(dev, "DWC CSI2 IPI MODE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_MODE));
++	dev_info(dev, "DWC CSI2 IPI VCID: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_VCID));
++	dev_info(dev, "DWC CSI2 IPI DATA TYPE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_DATA_TYPE));
++	dev_info(dev, "DWC CSI2 IPI SOFT RESET: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_SOFTRSTN));
++	dev_info(dev, "DWC CSI2 IPI ADV FEATURE: %#x\n",   dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_IPI_ADV_FEATURES));
++	dev_info(dev, "DWC CSI2 INT_MSK_PHY_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xE4));
++	dev_info(dev, "DWC CSI2 INT_MSK_PKT_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0xF4));
++	dev_info(dev, "DWC CSI2 INT_MSK_PHY: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x114));
++	dev_info(dev, "DWC CSI2 INT_MSK_IPI_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x144));
++	dev_info(dev, "DWC CSI2 INT_MSK_BNDRY_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x284));
++	dev_info(dev, "DWC CSI2 INT_MSK_SEQ_FRAME_FATAL: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x294));
++	dev_info(dev, "DWC CSI2 INT_MSK_DATA_ID: %#x\n", dwc_mipi_csi2h_read(csi2h, 0x2c4));
++
++	dev_info(dev, "IPI FATAL 140: %#x\n", dwc_mipi_csi2h_read(csi2h, DWC_MIPI_CSI2_INT_ST_IPI_FATAL));
+ }
+ 
+ static void gasket_dump(struct dwc_mipi_csi2_host *csi2h)
+@@ -453,19 +455,19 @@ static void gasket_dump(struct dwc_mipi_csi2_host *csi2h)
+ 	u32 val;
+ 
+ 	regmap_read(gasket, DISP_MIX_CAMERA_MUX, &val);
+-	dev_dbg(dev, "gasket: CAMERA MUX: %#x\n", val);
++	dev_info(dev, "gasket: CAMERA MUX: %#x\n", val);
+ 
+ 	regmap_read(gasket, DISP_MIX_CSI_REG, &val);
+-	dev_dbg(dev, "gasket: CSI REG: %#x\n", val);
++	dev_info(dev, "gasket: CSI REG: %#x\n", val);
+ 
+ 	regmap_read(gasket, 0x3C, &val);
+-	dev_dbg(dev, "gasket: MIPI -> ISI pixel ctrl: %#x\n", val);
++	dev_info(dev, "gasket: MIPI -> ISI pixel ctrl: %#x\n", val);
+ 
+ 	regmap_read(gasket, 0x40, &val);
+-	dev_dbg(dev, "gasket: MIPI -> ISI pixel cnt: %#x\n", val);
++	dev_info(dev, "gasket: MIPI -> ISI pixel cnt: %#x\n", val);
+ 
+ 	regmap_read(gasket, 0x44, &val);
+-	dev_dbg(dev, "gasket: MIPI -> ISI line cnt: %#x\n", val);
++	dev_info(dev, "gasket: MIPI -> ISI line cnt: %#x\n", val);
+ }
+ 
+ static inline struct dwc_mipi_csi2_host *sd_to_dwc_mipi_csi2h(
+@@ -532,7 +534,7 @@ static bool is_ppi_pg_active(struct dwc_mipi_csi2_host *csi2h)
+ 
+ static void dwc_pattern_generate(struct dwc_mipi_csi2_host *csi2h)
+ {
+-	struct dwc_pg_config *pg_config = &csi2h->pg_config; 
++	struct dwc_pg_config *pg_config = &csi2h->pg_config;
+ 	struct v4l2_mbus_framefmt *mf = &csi2h->format;
+ 	struct device *dev = &csi2h->pdev->dev;
+ 	u32 val;
+@@ -559,7 +561,7 @@ static void dwc_pattern_generate(struct dwc_mipi_csi2_host *csi2h)
+ 	val = (csi2h->ppi_pg_enable) ? DWC_MIPI_CSI2_PPI_PG_ENABLE_EN : 0;
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_PPI_PG_ENABLE, val);
+ 
+-	dev_dbg(dev, "enable DWC MIPI CSI2 pattern generator\n");
++	dev_info(dev, "enable DWC MIPI CSI2 pattern generator\n");
+ }
+ 
+ static void dwc_mipi_csi2_dphy_reset(struct dwc_mipi_csi2_host *csi2h)
+@@ -618,7 +620,7 @@ static void dwc_mipi_csi2_ipi_config_htiming(struct dwc_mipi_csi2_host *csi2h)
+ 	val = DWC_MIPI_CSI2_IPI_HLINE_TIME_VAL(ipi_cfg->hline_time);
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_HLINE_TIME, val);
+ 
+-	dev_dbg(dev, "hsa_time=%d, hbp_time=%d, hsd_time=%d, hline_time=%d\n",
++	dev_info(dev, "hsa_time=%d, hbp_time=%d, hsd_time=%d, hline_time=%d\n",
+ 		ipi_cfg->hsa_time, ipi_cfg->hbp_time,
+ 		ipi_cfg->hsd_time, ipi_cfg->hline_time);
+ }
+@@ -641,7 +643,7 @@ static void dwc_mipi_csi2_ipi_config_vtiming(struct dwc_mipi_csi2_host *csi2h)
+ 	val = DWC_MIPI_CSI2_IPI_VACTIVE_LINES_VAL(ipi_cfg->vactive_lines);
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_VACTIVE_LINES, val);
+ 
+-	dev_dbg(dev, "vsa_lines=%d, vbp_lines=%d, vsd_lines=%d, active_lines=%d\n",
++	dev_info(dev, "vsa_lines=%d, vbp_lines=%d, vsd_lines=%d, active_lines=%d\n",
+ 		ipi_cfg->vsa_lines, ipi_cfg->vbp_lines,
+ 		ipi_cfg->vfp_lines, ipi_cfg->vactive_lines);
+ }
+@@ -716,6 +718,9 @@ static void disp_mix_gasket_config(struct dwc_mipi_csi2_host *csi2h)
+ 	case MEDIA_BUS_FMT_SRGGB12_1X12:
+ 		fmt_val = DT_RAW12;
+ 		break;
++	case MEDIA_BUS_FMT_Y10_1X10:
++		fmt_val = DT_RAW10;
++		break;
+ 	default:
+ 		pr_err("gasket not support format %d\n", mf->code);
+ 		return;
+@@ -733,7 +738,7 @@ static void disp_mix_gasket_config(struct dwc_mipi_csi2_host *csi2h)
+ 	val |= csi2h->yuv420_line_sel << 13;
+ 	regmap_write(gasket, DISP_MIX_CAMERA_MUX, val);
+ 
+-	dev_dbg(dev, "format: %#x, w/h=(%d, %d)\n", mf->code, mf->width, mf->height);
++	dev_info(dev, "format: %#x, w/h=(%d, %d)\n", mf->code, mf->width, mf->height);
+ 	if (WARN_ON(!mf->width || !mf->height)) {
+ 		pr_err("Invaid width/height\n");
+ 		return;
+@@ -851,7 +856,7 @@ static int dwc_mipi_csi2_host_ipi_config(struct dwc_mipi_csi2_host *csi2h)
+ 		val &= ~DWC_MIPI_CSI2_IPI_VCID_VC_2;
+ 	dwc_mipi_csi2h_write(csi2h, DWC_MIPI_CSI2_IPI_VCID, val);
+ 
+-	dev_dbg(dev, "data_type:0x%x, virtual chan: %d\n",
++	dev_info(dev, "data_type:0x%x, virtual chan: %d\n",
+ 		ipi_cfg->data_type, ipi_cfg->vir_chan);
+ 
+ 	/* 1. Select the IPI mode, camera timing by default
+@@ -880,7 +885,7 @@ static int dwc_mipi_csi2_host_ipi_config(struct dwc_mipi_csi2_host *csi2h)
+ 	if (ipi_cfg->controller_mode || csi2h->ppi_pg_enable)
+ 		dwc_mipi_csi2_ipi_config_vtiming(csi2h);
+ 
+-	dev_dbg(dev, "ipi mode: %s, color_mode: %s\n",
++	dev_info(dev, "ipi mode: %s, color_mode: %s\n",
+ 		ipi_cfg->controller_mode ? "controller" : "camera",
+ 		ipi_cfg->color_mode_16   ? "color mode 16" : "color mode 48");
+ 
+@@ -1001,7 +1006,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 		memset(ipi_cfg, 0x0, sizeof(*ipi_cfg));
+ 
+ 		if (csi2h->ppi_pg_enable) {
+-			ipi_cfg->data_type  = DT_RGB888;
++			ipi_cfg->data_type  = DT_RAW10;
+ 			ipi_cfg->vir_chan   = 0;
+ 			ipi_cfg->hsa_time   = 3;
+ 			ipi_cfg->hbp_time   = 2;
+@@ -1012,10 +1017,10 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 			ipi_cfg->vfp_lines  = 0xf;
+ 			ipi_cfg->vactive_lines   = 1080;
+ 			ipi_cfg->controller_mode = 0;
+-			ipi_cfg->color_mode_16   = 0;
++			ipi_cfg->color_mode_16   = 1;
+ 			ipi_cfg->embeded_data    = 0;
+ 		} else {
+-			ipi_cfg->data_type  = DT_YUV422_8;
++			ipi_cfg->data_type  = DT_RAW10;
+ 			ipi_cfg->vir_chan   = 0;
+ 			ipi_cfg->hsa_time   = 0;
+ 			ipi_cfg->hbp_time   = 0;
+@@ -1026,7 +1031,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 			ipi_cfg->vfp_lines  = 0;
+ 			ipi_cfg->vactive_lines   = 0x320;
+ 			ipi_cfg->controller_mode = 0;
+-			ipi_cfg->color_mode_16   = 0;
++			ipi_cfg->color_mode_16   = 1;
+ 			ipi_cfg->embeded_data    = 0;
+ 		}
+ 	}
+@@ -1045,7 +1050,7 @@ static int dwc_mipi_csi2_param_init(struct dwc_mipi_csi2_host *csi2h)
+ 	of_property_read_u32(node, "cfg-clk-range", &csi2h->cfgclkfreqrange);
+ 	of_property_read_u32(node, "hs-clk-range", &csi2h->hsclkfreqrange);
+ 
+-	dev_dbg(dev, "cfgclkfreqrange=%d, hsfreqrange=%d\n",
++	dev_info(dev, "cfgclkfreqrange=%d, hsfreqrange=%d\n",
+ 		 csi2h->cfgclkfreqrange, csi2h->hsclkfreqrange);
+ 	return 0;
+ }
+@@ -1204,16 +1209,26 @@ static int dwc_mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
+ 
+ 	if (enable) {
+ 		pm_runtime_get_sync(dev);
++		dev_info(&csi2h->pdev->dev, "test1");
+ 		dwc_mipi_csi2_host_startup(csi2h);
++		dev_info(&csi2h->pdev->dev, "test2");
+ 		dwc_mipi_csi2_host_init(csi2h);
++		dev_info(&csi2h->pdev->dev, "test3");
+ 		dwc_mipi_csi2_host_ipi_config(csi2h);
++		dev_info(&csi2h->pdev->dev, "test4");
+ 		dwc_mipi_csi2_host_hs_rx_start(csi2h);
++		dev_info(&csi2h->pdev->dev, "test5");
+ 		disp_mix_gasket_config(csi2h);
++		dev_info(&csi2h->pdev->dev, "test6");
+ 		dwc_mipi_csi2_dump(csi2h);
++		dev_info(&csi2h->pdev->dev, "test7");
+ 		gasket_dump(csi2h);
++		dev_info(&csi2h->pdev->dev, "test8");
+ 	} else {
+ 		dwc_mipi_csi2_host_hs_rx_stop(csi2h);
++		dev_info(&csi2h->pdev->dev, "test9");
+ 		pm_runtime_put(dev);
++		dev_info(&csi2h->pdev->dev, "test10");
+ 	}
+ 
+ 	return ret;
+diff --git a/drivers/staging/media/imx/gmsl-max9286.c b/drivers/staging/media/imx/gmsl-max9286.c
+index a0c5a118f315..8080272e39a7 100644
+--- a/drivers/staging/media/imx/gmsl-max9286.c
++++ b/drivers/staging/media/imx/gmsl-max9286.c
+@@ -3149,7 +3149,7 @@ static DEVICE_ATTR_RW(analog_test_pattern);
+  * @param adapter            struct i2c_adapter *
+  * @return  Error code indicating success or failure
+  */
+-static int max9286_probe(struct i2c_client *client)
++static int max9286_probe(struct i2c_client *client, const struct i2c_device_id *id)
+ {
+ 	struct device *dev = &client->dev;
+ 	struct sensor_data *max9286_data;
+diff --git a/drivers/staging/media/imx/hdmirx/cdns-hdmirx-hdcp.c b/drivers/staging/media/imx/hdmirx/cdns-hdmirx-hdcp.c
+index fd8965606a93..0c29ecaba2c1 100644
+--- a/drivers/staging/media/imx/hdmirx/cdns-hdmirx-hdcp.c
++++ b/drivers/staging/media/imx/hdmirx/cdns-hdmirx-hdcp.c
+@@ -12,7 +12,7 @@
+ static int hdcprx_setconfig(struct cdns_hdmirx_device *hdmirx,
+ 			 struct hdcprx_config *cfg)
+ {
+-	u8 msg[4];
++	u8 msg[3];
+ 
+ 	msg[0] = cfg->activate;
+ 	msg[0] |= cfg->version << 1;
+@@ -20,12 +20,10 @@ static int hdcprx_setconfig(struct cdns_hdmirx_device *hdmirx,
+ 	msg[0] |= cfg->use_secondary_link << 4;
+ 	msg[0] |= cfg->use_km_key << 5;
+ 	msg[1] = cfg->bcaps;
+-
+-	msg[2] = (cfg->bstatus >> 8) & 0xff;
+-	msg[3] = cfg->bstatus & 0xff;
++	msg[2] = cfg->bstatus;
+ 
+ 	return cdns_hdmirx_mailbox_send(hdmirx, MB_MODULE_ID_HDCP_RX,
+-				      HDCP_RX_SET_CONFIG, sizeof(msg), msg);
++				      HDCP_RX_SET_CONFIG, 3, msg);
+ }
+ 
+ static int hdcprx_getstatus(struct cdns_hdmirx_device *hdmirx,
+@@ -62,7 +60,7 @@ static int hdcprx_notsync(struct cdns_hdmirx_device *hdmirx)
+ void cdns_hdcprx_enable(struct cdns_hdmirx_device *hdmirx)
+ {
+     int ret;
+-	int version = HDCPRX_VERSION_BOTH;
++	int version = HDCPRX_VERSION_2;
+ 	struct hdcprx_config config = { 0 };
+ 
+ 	config.activate = 1;
+diff --git a/drivers/staging/media/imx/hdmirx/cdns-hdmirx-phy.c b/drivers/staging/media/imx/hdmirx/cdns-hdmirx-phy.c
+index a8607f600197..1aa271ae1ff1 100644
+--- a/drivers/staging/media/imx/hdmirx/cdns-hdmirx-phy.c
++++ b/drivers/staging/media/imx/hdmirx/cdns-hdmirx-phy.c
+@@ -448,10 +448,16 @@ int set_sigdet_refcnt_adj(struct cdns_hdmirx_device *hdmirx, u32 sigdet_refcnt_a
+ int pma_power_state_chng(struct cdns_hdmirx_device *hdmirx, u8 power_state)
+ {
+ 	u16 reg_val;
+-	reg_field_t xcvr_power_state_req = {0, 0, 3, "xcvr_power_state_req"};
+-	reg_field_t xcvr_power_state_ack = {0, 4, 7, "xcvr_power_state_ack"};
++	reg_field_t xcvr_power_state_req;
++	reg_field_t xcvr_power_state_ack;
+ 	ktime_t timeout;
+ 
++	xcvr_power_state_req.label = "xcvr_power_state_req";
++	xcvr_power_state_ack.label = "xcvr_power_state_ack";
++	xcvr_power_state_req.msb = 3;
++	xcvr_power_state_req.lsb = 0;
++	xcvr_power_state_ack.msb = 7;
++	xcvr_power_state_ack.lsb = 4;
+ 	set_field_value(&xcvr_power_state_req, power_state);
+ 	set_field_value(&xcvr_power_state_ack, power_state);
+ 
+@@ -495,50 +501,191 @@ int pma_pll_config(struct cdns_hdmirx_device *hdmirx,
+ 	u64 vco_freq_khz;
+ 	const ktime_t timeout = ktime_timeout_ms(1000);
+ 
+-	reg_field_t cmnda_pll0_ip_div = {0, 0, 7, "cmnda_pll0_ip_div"};
+-	reg_field_t cmnda_pll0_hs_sym_div_sel = {0, 8, 9, "cmnda_pll0_hs_sym_div_sel"};
+-	reg_field_t cmn_pll0_fb_div_high_ovrd_en = {0, 15, 15, "cmn_pll0_fb_div_high_ovrd_en"};
+-	reg_field_t cmnda_pll0_fb_div_high_out = {0, 0, 9, "cmnda_pll0_fb_div_high_out"};
+-	reg_field_t cmn_pll0_fb_div_low_ovrd_en = {0, 15, 15, "cmn_pll0_fb_div_low_ovrd_en"};
+-	reg_field_t cmnda_pll0_fb_div_low_out = {0, 0, 9, "cmnda_pll0_fb_div_low_out"};
+-	reg_field_t cmn_pll_clk_osr = {0, 0, 2, "cmn_pll_clk_osr"};
+-	reg_field_t cmn_pll_clk_div2_ratio = {0, 4, 6, "cmn_pll_clk_div2_ratio"};
+-	reg_field_t cmn_pll_clk_div2_sel = {0, 8, 9, "cmn_pll_clk_div2_sel"};
+-	reg_field_t rx_diag_smplr_osr = {0, 0, 2, "rx_diag_smplr_osr"};
+-	reg_field_t rx_psc_a0 = {0, 0, 15, "rx_psc_a0"};
+-	reg_field_t rx_ree_pergcsm_eqenm_ph1 = {0, 0, 15, "rx_ree_pergcsm_eqenm_ph1"};
+-	reg_field_t rx_ree_pergcsm_eqenm_ph2 = {0, 0, 15, "rx_ree_pergcsm_eqenm_ph2"};
+-	reg_field_t vga_gain_accum_override_en = {0, 7, 7, "vga_gain_accum_override_en"};
+-	reg_field_t vga_gain_accum_override = {0, 0, 4, "vga_gain_accum_override"};
+-	reg_field_t vga_gain_tgt_adj_override_en = {0, 15, 15, "vga_gain_tgt_adj_override_en"};
+-	reg_field_t vga_gain_tgt_adj_override = {0, 8, 12, "vga_gain_tgt_adj_override"};
+-	reg_field_t ree_gen_sm_en_usb = {0, 0, 3, "ree_gen_sm_en_usb"};
+-	reg_field_t ree_gen_sm_en_periodic = {0, 8, 11, "ree_gen_sm_en_periodic"};
+-	reg_field_t ana_en_epath_gen_ctrl_sm_usb = {0, 4, 7, "ana_en_epath_gen_ctrl_sm_usb"};
+-	reg_field_t ana_en_epath_gen_ctrl_sm_periodic = {0, 12, 15, "ana_en_epath_gen_ctrl_sm_periodic"};
+-	reg_field_t rxda_eq_range_sel = {0, 0, 2, "rxda_eq_range_sel"};
+-	reg_field_t rxda_vga_sa_range_sel = {0, 4, 6, "rxda_vga_sa_range_sel"};
+-	reg_field_t vco_ring_select = {0, 12, 12, "vco_ring_select"};
+-	reg_field_t cmnda_pll0_v2i_prog = {0, 4, 5, "cmnda_pll0_v2i_prog"};
+-	reg_field_t cmnda_pll0_coarse_prog = {0, 0, 2, "cmnda_pll0_coarse_prog"};
+-	reg_field_t cmnda_pll0_cp_gain = {0, 0, 8, "cmnda_pll0_cp_gain"};
+-	reg_field_t cmnda_pll0_const_ndac_cntrl = {0, 8, 11, "cmnda_pll0_const_ndac_cntrl"};
+-	reg_field_t cmnda_pll0_const_pmos_cntrl = {0, 0, 7, "cmnda_pll0_const_pmos_cntrl"};
+-	reg_field_t cmnda_pll0_ptat_ndac_cntrl = {0, 0, 5, "cmnda_pll0_ptat_ndac_cntrl"};
+-	reg_field_t rxda_pi_iq_bias_trim = {0, 12, 14, "rxda_pi_iq_bias_trim"};
+-	reg_field_t rxda_pi_iq_pload_bias_trim = {0, 8, 10, "rxda_pi_iq_pload_bias_trim"};
+-	reg_field_t rxda_pi_iq_pload_trim = {0, 0, 7, "rxda_pi_iq_pload_trim"};
+-	reg_field_t rxda_pi_e_bias_trim = {0, 12, 14, "rxda_pi_e_bias_trim"};
+-	reg_field_t rxda_pi_e_pload_bias_trim = {0, 8, 10, "rxda_pi_e_pload_bias_trim"};
+-	reg_field_t rxda_pi_e_pload_trim = {0, 0, 7, "rxda_pi_e_pload_trim"};
+-	reg_field_t rxda_pi_range_sel = {0, 8, 11, "rxda_pi_range_sel"};
+-	reg_field_t rxda_pi_cal_cm_trim = {0, 0, 7, "rxda_pi_cal_cm_trim"};
+-	reg_field_t xcvr_pll_en = {0, 12, 12, "xcvr_pll_en"};
+-	reg_field_t xcvr_link_reset_n = {0, 13, 13, "xcvr_link_reset_n"};
+-	reg_field_t xcvr_power_state_req = {0, 0, 3, "xcvr_power_state_req"};
+-	reg_field_t iso_pma_cmn_pll0_clk_datart1_div = {0, 11, 14, "iso_pma_cmn_pll0_clk_datart1_div"};
+-	reg_field_t iso_pma_cmn_pll0_clk_datart0_div = {0, 7, 10, "iso_pma_cmn_pll0_clk_datart0_div"};
+-	reg_field_t iso_pma_cmn_pll0_clk_en = {0, 5, 5, "iso_pma_cmn_pll0_clk_en"};
++	reg_field_t cmnda_pll0_ip_div;
++	reg_field_t cmnda_pll0_hs_sym_div_sel;
++	reg_field_t cmn_pll0_fb_div_high_ovrd_en;
++	reg_field_t cmnda_pll0_fb_div_high_out;
++	reg_field_t cmn_pll0_fb_div_low_ovrd_en;
++	reg_field_t cmnda_pll0_fb_div_low_out;
++	reg_field_t cmn_pll_clk_osr;
++	reg_field_t cmn_pll_clk_div2_ratio;
++	reg_field_t cmn_pll_clk_div2_sel;
++	reg_field_t rx_diag_smplr_osr;
++	reg_field_t rx_psc_a0;
++	reg_field_t rx_ree_pergcsm_eqenm_ph1;
++	reg_field_t rx_ree_pergcsm_eqenm_ph2;
++	reg_field_t vga_gain_accum_override_en;
++	reg_field_t vga_gain_accum_override;
++	reg_field_t vga_gain_tgt_adj_override_en;
++	reg_field_t vga_gain_tgt_adj_override;
++	reg_field_t ree_gen_sm_en_usb;
++	reg_field_t ree_gen_sm_en_periodic;
++	reg_field_t ana_en_epath_gen_ctrl_sm_usb;
++	reg_field_t ana_en_epath_gen_ctrl_sm_periodic;
++	reg_field_t rxda_eq_range_sel;
++	reg_field_t rxda_vga_sa_range_sel;
++	reg_field_t vco_ring_select;
++	reg_field_t cmnda_pll0_v2i_prog;
++	reg_field_t cmnda_pll0_coarse_prog;
++	reg_field_t cmnda_pll0_cp_gain;
++	reg_field_t cmnda_pll0_const_ndac_cntrl;
++	reg_field_t cmnda_pll0_const_pmos_cntrl;
++	reg_field_t cmnda_pll0_ptat_ndac_cntrl;
++	reg_field_t rxda_pi_iq_bias_trim;
++	reg_field_t rxda_pi_iq_pload_bias_trim;
++	reg_field_t rxda_pi_iq_pload_trim;
++	reg_field_t rxda_pi_e_bias_trim;
++	reg_field_t rxda_pi_e_pload_bias_trim;
++	reg_field_t rxda_pi_e_pload_trim;
++	reg_field_t rxda_pi_range_sel;
++	reg_field_t rxda_pi_cal_cm_trim;
++	reg_field_t xcvr_pll_en;
++	reg_field_t xcvr_link_reset_n;
++	reg_field_t xcvr_power_state_req;
++	reg_field_t xcvr_power_state_ack;
++	reg_field_t iso_pma_cmn_pll0_clk_datart1_div;
++	reg_field_t iso_pma_cmn_pll0_clk_datart0_div;
++	reg_field_t iso_pma_cmn_pll0_clk_en;
++
++	/* Set fields' labels */
++	cmnda_pll0_ip_div.label = "cmnda_pll0_ip_div";
++	cmnda_pll0_hs_sym_div_sel.label = "cmnda_pll0_hs_sym_div_sel";
++	cmn_pll0_fb_div_high_ovrd_en.label = "cmn_pll0_fb_div_high_ovrd_en";
++	cmnda_pll0_fb_div_high_out.label = "cmnda_pll0_fb_div_high_out";
++	cmn_pll0_fb_div_low_ovrd_en.label = "cmn_pll0_fb_div_low_ovrd_en";
++	cmnda_pll0_fb_div_low_out.label = "cmnda_pll0_fb_div_low_out";
++	cmn_pll_clk_osr.label = "cmn_pll_clk_osr";
++	cmn_pll_clk_div2_ratio.label = "cmn_pll_clk_div2_ratio";
++	cmn_pll_clk_div2_sel.label = "cmn_pll_clk_div2_sel";
++	rx_diag_smplr_osr.label = "rx_diag_smplr_osr";
++	rx_psc_a0.label = "rx_psc_a0";
++	rx_ree_pergcsm_eqenm_ph1.label = "rx_ree_pergcsm_eqenm_ph1";
++	rx_ree_pergcsm_eqenm_ph2.label = "rx_ree_pergcsm_eqenm_ph2";
++	vga_gain_accum_override_en.label = "vga_gain_accum_override_en";
++	vga_gain_accum_override.label = "vga_gain_accum_override";
++	vga_gain_tgt_adj_override_en.label = "vga_gain_tgt_adj_override_en";
++	vga_gain_tgt_adj_override.label = "vga_gain_tgt_adj_override";
++	ree_gen_sm_en_usb.label = "ree_gen_sm_en_usb";
++	ree_gen_sm_en_periodic.label = "ree_gen_sm_en_periodic";
++	ana_en_epath_gen_ctrl_sm_usb.label = "ana_en_epath_gen_ctrl_sm_usb";
++	ana_en_epath_gen_ctrl_sm_periodic.label =
++	    "ana_en_epath_gen_ctrl_sm_periodic";
++	rxda_eq_range_sel.label = "rxda_eq_range_sel";
++	rxda_vga_sa_range_sel.label = "rxda_vga_sa_range_sel";
++	vco_ring_select.label = "vco_ring_select";
++	cmnda_pll0_v2i_prog.label = "cmnda_pll0_v2i_prog";
++	cmnda_pll0_coarse_prog.label = "cmnda_pll0_coarse_prog";
++	cmnda_pll0_cp_gain.label = "cmnda_pll0_cp_gain";
++	cmnda_pll0_const_ndac_cntrl.label = "cmnda_pll0_const_ndac_cntrl";
++	cmnda_pll0_const_pmos_cntrl.label = "cmnda_pll0_const_pmos_cntrl";
++	cmnda_pll0_ptat_ndac_cntrl.label = "cmnda_pll0_ptat_ndac_cntrl";
++	rxda_pi_iq_bias_trim.label = "rxda_pi_iq_bias_trim";
++	rxda_pi_iq_pload_bias_trim.label = "rxda_pi_iq_pload_bias_trim";
++	rxda_pi_iq_pload_trim.label = "rxda_pi_iq_pload_trim";
++	rxda_pi_e_bias_trim.label = "rxda_pi_e_bias_trim";
++	rxda_pi_e_pload_bias_trim.label = "rxda_pi_e_pload_bias_trim";
++	rxda_pi_e_pload_trim.label = "rxda_pi_e_pload_trim";
++	rxda_pi_range_sel.label = "rxda_pi_range_sel";
++	rxda_pi_cal_cm_trim.label = "rxda_pi_cal_cm_trim";
++	xcvr_pll_en.label = "xcvr_pll_en";
++	xcvr_link_reset_n.label = "xcvr_link_reset_n";
++	xcvr_power_state_req.label = "xcvr_power_state_req";
++	xcvr_power_state_ack.label = "xcvr_power_state_ack";
++	iso_pma_cmn_pll0_clk_datart1_div.label = "iso_pma_cmn_pll0_clk_datart1_div";
++	iso_pma_cmn_pll0_clk_datart0_div.label = "iso_pma_cmn_pll0_clk_datart0_div";
++	iso_pma_cmn_pll0_clk_en.label = "iso_pma_cmn_pll0_clk_en";
++
++	/* Set field position in a target register */
++	cmnda_pll0_ip_div.msb = 7;
++	cmnda_pll0_ip_div.lsb = 0;
++	cmnda_pll0_hs_sym_div_sel.msb = 9;
++	cmnda_pll0_hs_sym_div_sel.lsb = 8;
++	cmn_pll0_fb_div_high_ovrd_en.msb = 15;
++	cmn_pll0_fb_div_high_ovrd_en.lsb = 15;
++	cmnda_pll0_fb_div_high_out.msb = 9;
++	cmnda_pll0_fb_div_high_out.lsb = 0;
++	cmn_pll0_fb_div_low_ovrd_en.msb = 15;
++	cmn_pll0_fb_div_low_ovrd_en.lsb = 15;
++	cmnda_pll0_fb_div_low_out.msb = 9;
++	cmnda_pll0_fb_div_low_out.lsb = 0;
++	cmn_pll_clk_osr.msb = 2;
++	cmn_pll_clk_osr.lsb = 0;
++	cmn_pll_clk_div2_ratio.msb = 6;
++	cmn_pll_clk_div2_ratio.lsb = 4;
++	cmn_pll_clk_div2_sel.msb = 9;
++	cmn_pll_clk_div2_sel.lsb = 8;
++	rx_diag_smplr_osr.msb = 2;
++	rx_diag_smplr_osr.lsb = 0;
++	rx_psc_a0.msb = 15;
++	rx_psc_a0.lsb = 0;
++	rx_ree_pergcsm_eqenm_ph1.msb = 15;
++	rx_ree_pergcsm_eqenm_ph1.lsb = 0;
++	rx_ree_pergcsm_eqenm_ph2.msb = 15;
++	rx_ree_pergcsm_eqenm_ph2.lsb = 0;
++	vga_gain_accum_override_en.msb = 7;
++	vga_gain_accum_override_en.lsb = 7;
++	vga_gain_accum_override.msb = 4;
++	vga_gain_accum_override.lsb = 0;
++	vga_gain_tgt_adj_override_en.msb = 15;
++	vga_gain_tgt_adj_override_en.lsb = 15;
++	vga_gain_tgt_adj_override.msb = 12;
++	vga_gain_tgt_adj_override.lsb = 8;
++	ree_gen_sm_en_usb.msb = 3;
++	ree_gen_sm_en_usb.lsb = 0;
++	ree_gen_sm_en_periodic.msb = 11;
++	ree_gen_sm_en_periodic.lsb = 8;
++	ana_en_epath_gen_ctrl_sm_usb.msb = 7;
++	ana_en_epath_gen_ctrl_sm_usb.lsb = 4;
++	ana_en_epath_gen_ctrl_sm_periodic.msb = 15;
++	ana_en_epath_gen_ctrl_sm_periodic.lsb = 12;
++	rxda_eq_range_sel.msb = 2;
++	rxda_eq_range_sel.lsb = 0;
++	rxda_vga_sa_range_sel.msb = 6;
++	rxda_vga_sa_range_sel.lsb = 4;
++	vco_ring_select.msb = 12;
++	vco_ring_select.lsb = 12;
++	cmnda_pll0_v2i_prog.msb = 5;
++	cmnda_pll0_v2i_prog.lsb = 4;
++	cmnda_pll0_coarse_prog.msb = 2;
++	cmnda_pll0_coarse_prog.lsb = 0;
++	cmnda_pll0_cp_gain.msb = 8;
++	cmnda_pll0_cp_gain.lsb = 0;
++	cmnda_pll0_const_ndac_cntrl.msb = 11;
++	cmnda_pll0_const_ndac_cntrl.lsb = 8;
++	cmnda_pll0_const_pmos_cntrl.msb = 7;
++	cmnda_pll0_const_pmos_cntrl.lsb = 0;
++	cmnda_pll0_ptat_ndac_cntrl.msb = 5;
++	cmnda_pll0_ptat_ndac_cntrl.lsb = 0;
++	rxda_pi_iq_bias_trim.msb = 14;
++	rxda_pi_iq_bias_trim.lsb = 12;
++	rxda_pi_iq_pload_bias_trim.msb = 10;
++	rxda_pi_iq_pload_bias_trim.lsb = 8;
++	rxda_pi_iq_pload_trim.msb = 7;
++	rxda_pi_iq_pload_trim.lsb = 0;
++	rxda_pi_e_bias_trim.msb = 14;
++	rxda_pi_e_bias_trim.lsb = 12;
++	rxda_pi_e_pload_bias_trim.msb = 10;
++	rxda_pi_e_pload_bias_trim.lsb = 8;
++	rxda_pi_e_pload_trim.msb = 7;
++	rxda_pi_e_pload_trim.lsb = 0;
++	rxda_pi_range_sel.msb = 11;
++	rxda_pi_range_sel.lsb = 8;
++	rxda_pi_cal_cm_trim.msb = 7;
++	rxda_pi_cal_cm_trim.lsb = 0;
++	xcvr_pll_en.msb = 12;
++	xcvr_pll_en.lsb = 12;
++	xcvr_link_reset_n.msb = 13;
++	xcvr_link_reset_n.lsb = 13;
++	xcvr_power_state_req.msb = 3;
++	xcvr_power_state_req.lsb = 0;
++	xcvr_power_state_ack.msb = 7;
++	xcvr_power_state_ack.lsb = 4;
++	iso_pma_cmn_pll0_clk_datart1_div.msb = 14;
++	iso_pma_cmn_pll0_clk_datart1_div.lsb = 11;
++	iso_pma_cmn_pll0_clk_datart0_div.msb = 10;
++	iso_pma_cmn_pll0_clk_datart0_div.lsb = 7;
++	iso_pma_cmn_pll0_clk_en.msb = 5;
++	iso_pma_cmn_pll0_clk_en.lsb = 5;
+ 
+ 	dev_dbg(&hdmirx->pdev->dev, "pma_pll_config() Configuring PLL0 ...\n");
+ 
+diff --git a/drivers/staging/media/imx/hdmirx/cdns-hdmirx.c b/drivers/staging/media/imx/hdmirx/cdns-hdmirx.c
+index b13b88bb6369..0ec10e2e7613 100644
+--- a/drivers/staging/media/imx/hdmirx/cdns-hdmirx.c
++++ b/drivers/staging/media/imx/hdmirx/cdns-hdmirx.c
+@@ -95,9 +95,7 @@ static ssize_t HDCPRX_enable_store(struct device *dev,
+ 		return -1;
+ 	}
+ 
+-	if (sscanf(buf, "%d", &value) != 1)
+-		return -EINVAL;
+-
++    sscanf(buf, "%d", &value);
+     /* HDCP start/stop and load/unload of modules will be handled
+        in the tmdsmon function. We just setup the flags here.
+     */
+@@ -716,11 +714,7 @@ void imx8qm_hdmi_phy_reset(struct cdns_hdmirx_device *hdmirx, u8 reset)
+ 
+ 	dev_dbg(&hdmirx->pdev->dev, "%s\n", __func__);
+ 
+-	ret = imx_scu_get_handle(&handle);
+-	if (ret) {
+-		DRM_ERROR("Failed to get scu ipc handle (%d)\n", ret);
+-		return;
+-	}
++	imx_scu_get_handle(&handle);
+ 	/* set the pixel link mode and pixel type */
+ 	ret = imx_sc_misc_set_control(handle, IMX_SC_R_HDMI_RX, IMX_SC_C_PHY_RESET, reset);
+ 	if (ret)
+@@ -1261,13 +1255,8 @@ static int hdmirx_probe(struct platform_device *pdev)
+ 
+ 	hdmirx->is_cec = of_property_read_bool(pdev->dev.of_node, "fsl,cec");
+ 
+-	ret = of_property_read_string(pdev->dev.of_node, "firmware-name",
+-				&hdmirx->firmware_name);
+-	if (ret < 0) {
+-		v4l2_async_unregister_subdev(&hdmirx->sd);
+-		media_entity_cleanup(&hdmirx->sd.entity);
+-		return ret;
+-	}
++	of_property_read_string(pdev->dev.of_node, "firmware-name",
++					&hdmirx->firmware_name);
+ 
+ 	hdmirx_clock_init(hdmirx);
+ 
+diff --git a/drivers/staging/media/imx/hdmirx/cdns-mhdp-hdmirx.h b/drivers/staging/media/imx/hdmirx/cdns-mhdp-hdmirx.h
+index c12600a9bab5..d8b00dd4ec7b 100644
+--- a/drivers/staging/media/imx/hdmirx/cdns-mhdp-hdmirx.h
++++ b/drivers/staging/media/imx/hdmirx/cdns-mhdp-hdmirx.h
+@@ -309,7 +309,7 @@ struct cdns_hdmirx_device {
+ 
+ 	struct platform_device		*pdev;
+ 	struct v4l2_device			*v4l2_dev;
+-	struct v4l2_async_connection asd;
++	struct v4l2_async_subdev asd;
+ 	struct v4l2_ctrl_handler ctrl_hdl;
+ 	struct v4l2_mbus_framefmt format;
+ 	struct v4l2_fract aspect_ratio;
+diff --git a/drivers/staging/media/imx/imx-media-capture.c b/drivers/staging/media/imx/imx-media-capture.c
+index 4846078315ff..93ba09236010 100644
+--- a/drivers/staging/media/imx/imx-media-capture.c
++++ b/drivers/staging/media/imx/imx-media-capture.c
+@@ -7,6 +7,7 @@
+ #include <linux/delay.h>
+ #include <linux/fs.h>
+ #include <linux/module.h>
++#include <linux/of_platform.h>
+ #include <linux/pinctrl/consumer.h>
+ #include <linux/platform_device.h>
+ #include <linux/sched.h>
+@@ -352,13 +353,12 @@ static int capture_legacy_enum_fmt_vid_cap(struct file *file, void *fh,
+ {
+ 	struct capture_priv *priv = video_drvdata(file);
+ 	const struct imx_media_pixfmt *cc_src;
+-	struct v4l2_subdev_format fmt_src = {
+-		.pad = priv->src_sd_pad,
+-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+-	};
++	struct v4l2_subdev_format fmt_src;
+ 	u32 fourcc;
+ 	int ret;
+ 
++	fmt_src.pad = priv->src_sd_pad;
++	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+ 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+ 	if (ret) {
+ 		dev_err(priv->dev, "failed to get src_sd format\n");
+@@ -426,12 +426,11 @@ static int capture_legacy_try_fmt_vid_cap(struct file *file, void *fh,
+ 					  struct v4l2_format *f)
+ {
+ 	struct capture_priv *priv = video_drvdata(file);
+-	struct v4l2_subdev_format fmt_src = {
+-		.pad = priv->src_sd_pad,
+-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+-	};
++	struct v4l2_subdev_format fmt_src;
+ 	int ret;
+ 
++	fmt_src.pad = priv->src_sd_pad;
++	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+ 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+ 	if (ret)
+ 		return ret;
+@@ -446,10 +445,7 @@ static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
+ 					struct v4l2_format *f)
+ {
+ 	struct capture_priv *priv = video_drvdata(file);
+-	struct v4l2_subdev_format fmt_src = {
+-		.pad = priv->src_sd_pad,
+-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+-	};
++	struct v4l2_subdev_format fmt_src;
+ 	const struct imx_media_pixfmt *cc;
+ 	int ret;
+ 
+@@ -458,6 +454,8 @@ static int capture_legacy_s_fmt_vid_cap(struct file *file, void *fh,
+ 		return -EBUSY;
+ 	}
+ 
++	fmt_src.pad = priv->src_sd_pad;
++	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+ 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+ 	if (ret)
+ 		return ret;
+@@ -503,14 +501,14 @@ static int capture_legacy_g_parm(struct file *file, void *fh,
+ 				 struct v4l2_streamparm *a)
+ {
+ 	struct capture_priv *priv = video_drvdata(file);
+-	struct v4l2_subdev_frame_interval fi = {
+-		.pad = priv->src_sd_pad,
+-	};
++	struct v4l2_subdev_frame_interval fi;
+ 	int ret;
+ 
+ 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+ 		return -EINVAL;
+ 
++	memset(&fi, 0, sizeof(fi));
++	fi.pad = priv->src_sd_pad;
+ 	ret = v4l2_subdev_call(priv->src_sd, video, g_frame_interval, &fi);
+ 	if (ret < 0)
+ 		return ret;
+@@ -525,14 +523,14 @@ static int capture_legacy_s_parm(struct file *file, void *fh,
+ 				 struct v4l2_streamparm *a)
+ {
+ 	struct capture_priv *priv = video_drvdata(file);
+-	struct v4l2_subdev_frame_interval fi = {
+-		.pad = priv->src_sd_pad,
+-	};
++	struct v4l2_subdev_frame_interval fi;
+ 	int ret;
+ 
+ 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+ 		return -EINVAL;
+ 
++	memset(&fi, 0, sizeof(fi));
++	fi.pad = priv->src_sd_pad;
+ 	fi.interval = a->parm.capture.timeperframe;
+ 	ret = v4l2_subdev_call(priv->src_sd, video, s_frame_interval, &fi);
+ 	if (ret < 0)
+@@ -672,14 +670,13 @@ static void capture_buf_queue(struct vb2_buffer *vb)
+ 
+ static int capture_validate_fmt(struct capture_priv *priv)
+ {
+-	struct v4l2_subdev_format fmt_src = {
+-		.pad = priv->src_sd_pad,
+-		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+-	};
++	struct v4l2_subdev_format fmt_src;
+ 	const struct imx_media_pixfmt *cc;
+ 	int ret;
+ 
+ 	/* Retrieve the media bus format on the source subdev. */
++	fmt_src.pad = priv->src_sd_pad;
++	fmt_src.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+ 	ret = v4l2_subdev_call(priv->src_sd, pad, get_fmt, NULL, &fmt_src);
+ 	if (ret)
+ 		return ret;
+diff --git a/drivers/staging/media/imx/imx-media-csc-scaler.c b/drivers/staging/media/imx/imx-media-csc-scaler.c
+index 95cca281e8a3..1fd39a2fca98 100644
+--- a/drivers/staging/media/imx/imx-media-csc-scaler.c
++++ b/drivers/staging/media/imx/imx-media-csc-scaler.c
+@@ -803,7 +803,6 @@ static int ipu_csc_scaler_release(struct file *file)
+ 
+ 	dev_dbg(priv->dev, "Releasing instance %p\n", ctx);
+ 
+-	v4l2_ctrl_handler_free(&ctx->ctrl_hdlr);
+ 	v4l2_m2m_ctx_release(ctx->fh.m2m_ctx);
+ 	v4l2_fh_del(&ctx->fh);
+ 	v4l2_fh_exit(&ctx->fh);
+diff --git a/drivers/staging/media/imx/imx-media-csi.c b/drivers/staging/media/imx/imx-media-csi.c
+index dda1ebc34692..b2b1f4dd41d7 100644
+--- a/drivers/staging/media/imx/imx-media-csi.c
++++ b/drivers/staging/media/imx/imx-media-csi.c
+@@ -97,8 +97,8 @@ struct csi_priv {
+ 	/* the mipi virtual channel number at link validate */
+ 	int vc_num;
+ 
+-	/* media bus config of the upstream subdevice CSI is receiving from */
+-	struct v4l2_mbus_config mbus_cfg;
++	/* the upstream endpoint CSI is receiving from */
++	struct v4l2_fwnode_endpoint upstream_ep;
+ 
+ 	spinlock_t irqlock; /* protect eof_irq handler */
+ 	struct timer_list eof_timeout_timer;
+@@ -125,14 +125,14 @@ static inline struct csi_priv *notifier_to_dev(struct v4l2_async_notifier *n)
+ 	return container_of(n, struct csi_priv, notifier);
+ }
+ 
+-static inline bool is_parallel_bus(struct v4l2_mbus_config *mbus_cfg)
++static inline bool is_parallel_bus(struct v4l2_fwnode_endpoint *ep)
+ {
+-	return mbus_cfg->type != V4L2_MBUS_CSI2_DPHY;
++	return ep->bus_type != V4L2_MBUS_CSI2_DPHY;
+ }
+ 
+-static inline bool is_parallel_16bit_bus(struct v4l2_mbus_config *mbus_cfg)
++static inline bool is_parallel_16bit_bus(struct v4l2_fwnode_endpoint *ep)
+ {
+-	return is_parallel_bus(mbus_cfg) && mbus_cfg->bus.parallel.bus_width >= 16;
++	return is_parallel_bus(ep) && ep->bus.parallel.bus_width >= 16;
+ }
+ 
+ /*
+@@ -145,31 +145,36 @@ static inline bool is_parallel_16bit_bus(struct v4l2_mbus_config *mbus_cfg)
+  * - the CSI is receiving from an 8-bit parallel bus and the incoming
+  *   media bus format is other than UYVY8_2X8/YUYV8_2X8.
+  */
+-static inline bool requires_passthrough(struct v4l2_mbus_config *mbus_cfg,
++static inline bool requires_passthrough(struct v4l2_fwnode_endpoint *ep,
+ 					struct v4l2_mbus_framefmt *infmt,
+ 					const struct imx_media_pixfmt *incc)
+ {
+-	if (mbus_cfg->type == V4L2_MBUS_BT656) // including BT.1120
++	if (ep->bus_type == V4L2_MBUS_BT656) // including BT.1120
+ 		return false;
+ 
+-	return incc->bayer || is_parallel_16bit_bus(mbus_cfg) ||
+-		(is_parallel_bus(mbus_cfg) &&
++	return incc->bayer || is_parallel_16bit_bus(ep) ||
++		(is_parallel_bus(ep) &&
+ 		 infmt->code != MEDIA_BUS_FMT_UYVY8_2X8 &&
+ 		 infmt->code != MEDIA_BUS_FMT_YUYV8_2X8);
+ }
+ 
+ /*
+- * Queries the media bus config of the upstream entity that provides data to
+- * the CSI. This will either be the entity directly upstream from the CSI-2
+- * receiver, directly upstream from a video mux, or directly upstream from
+- * the CSI itself.
++ * Parses the fwnode endpoint from the source pad of the entity
++ * connected to this CSI. This will either be the entity directly
++ * upstream from the CSI-2 receiver, directly upstream from the
++ * video mux, or directly upstream from the CSI itself. The endpoint
++ * is needed to determine the bus type and bus config coming into
++ * the CSI.
+  */
+-static int csi_get_upstream_mbus_config(struct csi_priv *priv,
+-					struct v4l2_mbus_config *mbus_cfg)
++static int csi_get_upstream_endpoint(struct csi_priv *priv,
++				     struct v4l2_fwnode_endpoint *ep)
+ {
+-	struct v4l2_subdev *sd, *remote_sd;
+-	struct media_pad *remote_pad;
+-	int ret;
++	struct fwnode_handle *endpoint;
++	struct v4l2_subdev *sd;
++	struct media_pad *pad;
++
++	if (!IS_ENABLED(CONFIG_OF))
++		return -ENXIO;
+ 
+ 	if (!priv->src_sd)
+ 		return -EPIPE;
+@@ -201,21 +206,19 @@ static int csi_get_upstream_mbus_config(struct csi_priv *priv,
+ 	}
+ 
+ 	/* get source pad of entity directly upstream from sd */
+-	remote_pad = media_entity_remote_pad_unique(&sd->entity,
+-						    MEDIA_PAD_FL_SOURCE);
+-	if (IS_ERR(remote_pad))
+-		return PTR_ERR(remote_pad);
++	pad = imx_media_pipeline_pad(&sd->entity, 0, 0, true);
++	if (!pad)
++		return -ENODEV;
+ 
+-	remote_sd = media_entity_to_v4l2_subdev(remote_pad->entity);
++	endpoint = imx_media_get_pad_fwnode(pad);
++	if (IS_ERR(endpoint))
++		return PTR_ERR(endpoint);
+ 
+-	ret = v4l2_subdev_call(remote_sd, pad, get_mbus_config,
+-			       remote_pad->index, mbus_cfg);
+-	if (ret == -ENOIOCTLCMD)
+-		v4l2_err(&priv->sd,
+-			 "entity %s does not implement get_mbus_config()\n",
+-			 remote_pad->entity->name);
++	v4l2_fwnode_endpoint_parse(endpoint, ep);
+ 
+-	return ret;
++	fwnode_handle_put(endpoint);
++
++	return 0;
+ }
+ 
+ static void csi_idmac_put_ipu_resources(struct csi_priv *priv)
+@@ -432,7 +435,7 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
+ 	image.phys0 = phys[0];
+ 	image.phys1 = phys[1];
+ 
+-	passthrough = requires_passthrough(&priv->mbus_cfg, infmt, incc);
++	passthrough = requires_passthrough(&priv->upstream_ep, infmt, incc);
+ 	passthrough_cycles = 1;
+ 
+ 	/*
+@@ -705,6 +708,7 @@ static int csi_setup(struct csi_priv *priv)
+ {
+ 	struct v4l2_mbus_framefmt *infmt, *outfmt;
+ 	const struct imx_media_pixfmt *incc;
++	struct v4l2_mbus_config mbus_cfg;
+ 	struct v4l2_mbus_framefmt if_fmt;
+ 	struct v4l2_rect crop;
+ 
+@@ -712,6 +716,13 @@ static int csi_setup(struct csi_priv *priv)
+ 	incc = priv->cc[CSI_SINK_PAD];
+ 	outfmt = &priv->format_mbus[priv->active_output_pad];
+ 
++	/* compose mbus_config from the upstream endpoint */
++	mbus_cfg.type = priv->upstream_ep.bus_type;
++	if (is_parallel_bus(&priv->upstream_ep))
++		mbus_cfg.bus.parallel = priv->upstream_ep.bus.parallel;
++	else
++		mbus_cfg.bus.mipi_csi2 = priv->upstream_ep.bus.mipi_csi2;
++
+ 	if_fmt = *infmt;
+ 	crop = priv->crop;
+ 
+@@ -719,7 +730,7 @@ static int csi_setup(struct csi_priv *priv)
+ 	 * if cycles is set, we need to handle this over multiple cycles as
+ 	 * generic/bayer data
+ 	 */
+-	if (is_parallel_bus(&priv->mbus_cfg) && incc->cycles) {
++	if (is_parallel_bus(&priv->upstream_ep) && incc->cycles) {
+ 		if_fmt.width *= incc->cycles;
+ 		crop.width *= incc->cycles;
+ 	}
+@@ -730,7 +741,7 @@ static int csi_setup(struct csi_priv *priv)
+ 			     priv->crop.width == 2 * priv->compose.width,
+ 			     priv->crop.height == 2 * priv->compose.height);
+ 
+-	ipu_csi_init_interface(priv->csi, &priv->mbus_cfg, &if_fmt, outfmt);
++	ipu_csi_init_interface(priv->csi, &mbus_cfg, &if_fmt, outfmt);
+ 
+ 	ipu_csi_set_dest(priv->csi, priv->dest);
+ 
+@@ -758,7 +769,7 @@ static int csi_start(struct csi_priv *priv)
+ 		return ret;
+ 
+ 	/* Skip first few frames from a BT.656 source */
+-	if (priv->mbus_cfg.type == V4L2_MBUS_BT656) {
++	if (priv->upstream_ep.bus_type == V4L2_MBUS_BT656) {
+ 		u32 delay_usec, bad_frames = 20;
+ 
+ 		delay_usec = DIV_ROUND_UP_ULL((u64)USEC_PER_SEC *
+@@ -779,8 +790,11 @@ static int csi_start(struct csi_priv *priv)
+ 		goto idmac_stop;
+ 
+ 	/* start the frame interval monitor */
+-	if (priv->fim && priv->dest == IPU_CSI_DEST_IDMAC)
+-		imx_media_fim_set_stream(priv->fim, output_fi, true);
++	if (priv->fim && priv->dest == IPU_CSI_DEST_IDMAC) {
++		ret = imx_media_fim_set_stream(priv->fim, output_fi, true);
++		if (ret)
++			goto idmac_stop;
++	}
+ 
+ 	ret = ipu_csi_enable(priv->csi);
+ 	if (ret) {
+@@ -1104,7 +1118,7 @@ static int csi_link_validate(struct v4l2_subdev *sd,
+ 			     struct v4l2_subdev_format *sink_fmt)
+ {
+ 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
+-	struct v4l2_mbus_config mbus_cfg = { .type = 0 };
++	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
+ 	bool is_csi2;
+ 	int ret;
+ 
+@@ -1113,17 +1127,16 @@ static int csi_link_validate(struct v4l2_subdev *sd,
+ 	if (ret)
+ 		return ret;
+ 
+-	ret = csi_get_upstream_mbus_config(priv, &mbus_cfg);
++	ret = csi_get_upstream_endpoint(priv, &upstream_ep);
+ 	if (ret) {
+-		v4l2_err(&priv->sd,
+-			 "failed to get upstream media bus configuration\n");
++		v4l2_err(&priv->sd, "failed to find upstream endpoint\n");
+ 		return ret;
+ 	}
+ 
+ 	mutex_lock(&priv->lock);
+ 
+-	priv->mbus_cfg = mbus_cfg;
+-	is_csi2 = !is_parallel_bus(&mbus_cfg);
++	priv->upstream_ep = upstream_ep;
++	is_csi2 = !is_parallel_bus(&upstream_ep);
+ 	if (is_csi2) {
+ 		/*
+ 		 * NOTE! It seems the virtual channels from the mipi csi-2
+@@ -1179,7 +1192,7 @@ static void csi_try_crop(struct csi_priv *priv,
+ 			 struct v4l2_rect *crop,
+ 			 struct v4l2_subdev_state *sd_state,
+ 			 struct v4l2_mbus_framefmt *infmt,
+-			 struct v4l2_mbus_config *mbus_cfg)
++			 struct v4l2_fwnode_endpoint *upstream_ep)
+ {
+ 	u32 in_height;
+ 
+@@ -1203,7 +1216,7 @@ static void csi_try_crop(struct csi_priv *priv,
+ 	 * sync, so fix it to NTSC/PAL active lines. NTSC contains
+ 	 * 2 extra lines of active video that need to be cropped.
+ 	 */
+-	if (mbus_cfg->type == V4L2_MBUS_BT656 &&
++	if (upstream_ep->bus_type == V4L2_MBUS_BT656 &&
+ 	    (V4L2_FIELD_HAS_BOTH(infmt->field) ||
+ 	     infmt->field == V4L2_FIELD_ALTERNATE)) {
+ 		crop->height = in_height;
+@@ -1220,7 +1233,7 @@ static int csi_enum_mbus_code(struct v4l2_subdev *sd,
+ 			      struct v4l2_subdev_mbus_code_enum *code)
+ {
+ 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
+-	struct v4l2_mbus_config mbus_cfg = { .type = 0 };
++	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
+ 	const struct imx_media_pixfmt *incc;
+ 	struct v4l2_mbus_framefmt *infmt;
+ 	int ret = 0;
+@@ -1237,14 +1250,13 @@ static int csi_enum_mbus_code(struct v4l2_subdev *sd,
+ 		break;
+ 	case CSI_SRC_PAD_DIRECT:
+ 	case CSI_SRC_PAD_IDMAC:
+-		ret = csi_get_upstream_mbus_config(priv, &mbus_cfg);
++		ret = csi_get_upstream_endpoint(priv, &upstream_ep);
+ 		if (ret) {
+-			v4l2_err(&priv->sd,
+-				 "failed to get upstream media bus configuration\n");
++			v4l2_err(&priv->sd, "failed to find upstream endpoint\n");
+ 			goto out;
+ 		}
+ 
+-		if (requires_passthrough(&mbus_cfg, infmt, incc)) {
++		if (requires_passthrough(&upstream_ep, infmt, incc)) {
+ 			if (code->index != 0) {
+ 				ret = -EINVAL;
+ 				goto out;
+@@ -1414,7 +1426,7 @@ static void csi_try_field(struct csi_priv *priv,
+ }
+ 
+ static void csi_try_fmt(struct csi_priv *priv,
+-			struct v4l2_mbus_config *mbus_cfg,
++			struct v4l2_fwnode_endpoint *upstream_ep,
+ 			struct v4l2_subdev_state *sd_state,
+ 			struct v4l2_subdev_format *sdformat,
+ 			struct v4l2_rect *crop,
+@@ -1435,7 +1447,7 @@ static void csi_try_fmt(struct csi_priv *priv,
+ 		sdformat->format.width = compose->width;
+ 		sdformat->format.height = compose->height;
+ 
+-		if (requires_passthrough(mbus_cfg, infmt, incc)) {
++		if (requires_passthrough(upstream_ep, infmt, incc)) {
+ 			sdformat->format.code = infmt->code;
+ 			*cc = incc;
+ 		} else {
+@@ -1485,7 +1497,8 @@ static void csi_try_fmt(struct csi_priv *priv,
+ 		crop->height = sdformat->format.height;
+ 		if (sdformat->format.field == V4L2_FIELD_ALTERNATE)
+ 			crop->height *= 2;
+-		csi_try_crop(priv, crop, sd_state, &sdformat->format, mbus_cfg);
++		csi_try_crop(priv, crop, sd_state, &sdformat->format,
++			     upstream_ep);
+ 		compose->left = 0;
+ 		compose->top = 0;
+ 		compose->width = crop->width;
+@@ -1503,7 +1516,7 @@ static int csi_set_fmt(struct v4l2_subdev *sd,
+ 		       struct v4l2_subdev_format *sdformat)
+ {
+ 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
+-	struct v4l2_mbus_config mbus_cfg = { .type = 0 };
++	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
+ 	const struct imx_media_pixfmt *cc;
+ 	struct v4l2_mbus_framefmt *fmt;
+ 	struct v4l2_rect *crop, *compose;
+@@ -1512,10 +1525,9 @@ static int csi_set_fmt(struct v4l2_subdev *sd,
+ 	if (sdformat->pad >= CSI_NUM_PADS)
+ 		return -EINVAL;
+ 
+-	ret = csi_get_upstream_mbus_config(priv, &mbus_cfg);
++	ret = csi_get_upstream_endpoint(priv, &upstream_ep);
+ 	if (ret) {
+-		v4l2_err(&priv->sd,
+-			 "failed to get upstream media bus configuration\n");
++		v4l2_err(&priv->sd, "failed to find upstream endpoint\n");
+ 		return ret;
+ 	}
+ 
+@@ -1529,7 +1541,8 @@ static int csi_set_fmt(struct v4l2_subdev *sd,
+ 	crop = __csi_get_crop(priv, sd_state, sdformat->which);
+ 	compose = __csi_get_compose(priv, sd_state, sdformat->which);
+ 
+-	csi_try_fmt(priv, &mbus_cfg, sd_state, sdformat, crop, compose, &cc);
++	csi_try_fmt(priv, &upstream_ep, sd_state, sdformat, crop, compose,
++		    &cc);
+ 
+ 	fmt = __csi_get_fmt(priv, sd_state, sdformat->pad, sdformat->which);
+ 	*fmt = sdformat->format;
+@@ -1546,8 +1559,8 @@ static int csi_set_fmt(struct v4l2_subdev *sd,
+ 			format.pad = pad;
+ 			format.which = sdformat->which;
+ 			format.format = sdformat->format;
+-			csi_try_fmt(priv, &mbus_cfg, sd_state, &format, NULL,
+-				    compose, &outcc);
++			csi_try_fmt(priv, &upstream_ep, sd_state, &format,
++				    NULL, compose, &outcc);
+ 
+ 			outfmt = __csi_get_fmt(priv, sd_state, pad,
+ 					       sdformat->which);
+@@ -1635,7 +1648,7 @@ static int csi_set_selection(struct v4l2_subdev *sd,
+ 			     struct v4l2_subdev_selection *sel)
+ {
+ 	struct csi_priv *priv = v4l2_get_subdevdata(sd);
+-	struct v4l2_mbus_config mbus_cfg = { .type = 0 };
++	struct v4l2_fwnode_endpoint upstream_ep = { .bus_type = 0 };
+ 	struct v4l2_mbus_framefmt *infmt;
+ 	struct v4l2_rect *crop, *compose;
+ 	int pad, ret;
+@@ -1643,10 +1656,9 @@ static int csi_set_selection(struct v4l2_subdev *sd,
+ 	if (sel->pad != CSI_SINK_PAD)
+ 		return -EINVAL;
+ 
+-	ret = csi_get_upstream_mbus_config(priv, &mbus_cfg);
++	ret = csi_get_upstream_endpoint(priv, &upstream_ep);
+ 	if (ret) {
+-		v4l2_err(&priv->sd,
+-			 "failed to get upstream media bus configuration\n");
++		v4l2_err(&priv->sd, "failed to find upstream endpoint\n");
+ 		return ret;
+ 	}
+ 
+@@ -1675,7 +1687,7 @@ static int csi_set_selection(struct v4l2_subdev *sd,
+ 			goto out;
+ 		}
+ 
+-		csi_try_crop(priv, &sel->r, sd_state, infmt, &mbus_cfg);
++		csi_try_crop(priv, &sel->r, sd_state, infmt, &upstream_ep);
+ 
+ 		*crop = sel->r;
+ 
+@@ -1892,7 +1904,7 @@ static const struct v4l2_subdev_internal_ops csi_internal_ops = {
+ 
+ static int imx_csi_notify_bound(struct v4l2_async_notifier *notifier,
+ 				struct v4l2_subdev *sd,
+-				struct v4l2_async_connection *asd)
++				struct v4l2_async_subdev *asd)
+ {
+ 	struct csi_priv *priv = notifier_to_dev(notifier);
+ 	struct media_pad *sink = &priv->sd.entity.pads[CSI_SINK_PAD];
+@@ -1913,12 +1925,12 @@ static const struct v4l2_async_notifier_operations csi_notify_ops = {
+ 
+ static int imx_csi_async_register(struct csi_priv *priv)
+ {
+-	struct v4l2_async_connection *asd = NULL;
++	struct v4l2_async_subdev *asd = NULL;
+ 	struct fwnode_handle *ep;
+ 	unsigned int port;
+ 	int ret;
+ 
+-	v4l2_async_subdev_nf_init(&priv->notifier, &priv->sd);
++	v4l2_async_nf_init(&priv->notifier);
+ 
+ 	/* get this CSI's port id */
+ 	ret = fwnode_property_read_u32(dev_fwnode(priv->dev), "reg", &port);
+@@ -1930,7 +1942,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
+ 					     FWNODE_GRAPH_ENDPOINT_NEXT);
+ 	if (ep) {
+ 		asd = v4l2_async_nf_add_fwnode_remote(&priv->notifier, ep,
+-						      struct v4l2_async_connection);
++						      struct v4l2_async_subdev);
+ 
+ 		fwnode_handle_put(ep);
+ 
+@@ -1944,7 +1956,7 @@ static int imx_csi_async_register(struct csi_priv *priv)
+ 
+ 	priv->notifier.ops = &csi_notify_ops;
+ 
+-	ret = v4l2_async_nf_register(&priv->notifier);
++	ret = v4l2_async_subdev_nf_register(&priv->sd, &priv->notifier);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -2041,7 +2053,7 @@ static int imx_csi_probe(struct platform_device *pdev)
+ 	return ret;
+ }
+ 
+-static void imx_csi_remove(struct platform_device *pdev)
++static int imx_csi_remove(struct platform_device *pdev)
+ {
+ 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+ 	struct csi_priv *priv = sd_to_dev(sd);
+@@ -2052,6 +2064,8 @@ static void imx_csi_remove(struct platform_device *pdev)
+ 	v4l2_async_nf_cleanup(&priv->notifier);
+ 	v4l2_async_unregister_subdev(sd);
+ 	media_entity_cleanup(&sd->entity);
++
++	return 0;
+ }
+ 
+ static const struct platform_device_id imx_csi_ids[] = {
+@@ -2062,7 +2076,7 @@ MODULE_DEVICE_TABLE(platform, imx_csi_ids);
+ 
+ static struct platform_driver imx_csi_driver = {
+ 	.probe = imx_csi_probe,
+-	.remove_new = imx_csi_remove,
++	.remove = imx_csi_remove,
+ 	.id_table = imx_csi_ids,
+ 	.driver = {
+ 		.name = "imx-ipuv3-csi",
+diff --git a/drivers/staging/media/imx/imx-media-dev-common.c b/drivers/staging/media/imx/imx-media-dev-common.c
+index 0d0ee8627a2d..e6d6ed3b1161 100644
+--- a/drivers/staging/media/imx/imx-media-dev-common.c
++++ b/drivers/staging/media/imx/imx-media-dev-common.c
+@@ -6,6 +6,8 @@
+  * Copyright (c) 2016 Mentor Graphics Inc.
+  */
+ 
++#include <linux/of_graph.h>
++#include <linux/of_platform.h>
+ #include <media/v4l2-ctrls.h>
+ #include <media/v4l2-event.h>
+ #include <media/v4l2-ioctl.h>
+@@ -17,6 +19,18 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
+ 	return container_of(n, struct imx_media_dev, notifier);
+ }
+ 
++/* async subdev bound notifier */
++static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
++				  struct v4l2_subdev *sd,
++				  struct v4l2_async_subdev *asd)
++{
++	struct imx_media_dev *imxmd = notifier2dev(notifier);
++
++	dev_dbg(imxmd->md.dev, "subdev %s bound\n", sd->name);
++
++	return 0;
++}
++
+ /*
+  * Create the missing media links from the CSI-2 receiver.
+  * Called after all async subdevs have bound.
+@@ -37,6 +51,7 @@ static void imx_media_create_csi2_links(struct imx_media_dev *imxmd)
+ 	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
+ 		/* skip if not a CSI or a CSI mux */
+ 		if (!(sd->grp_id & IMX_MEDIA_GRP_ID_IPU_CSI) &&
++		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI) &&
+ 		    !(sd->grp_id & IMX_MEDIA_GRP_ID_CSI_MUX))
+ 			continue;
+ 
+@@ -322,6 +337,7 @@ static void imx_media_notify(struct v4l2_subdev *sd, unsigned int notification,
+ }
+ 
+ static const struct v4l2_async_notifier_operations imx_media_notifier_ops = {
++	.bound = imx_media_subdev_bound,
+ 	.complete = imx_media_probe_complete,
+ };
+ 
+@@ -365,7 +381,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
+ 
+ 	INIT_LIST_HEAD(&imxmd->vdev_list);
+ 
+-	v4l2_async_nf_init(&imxmd->notifier, &imxmd->v4l2_dev);
++	v4l2_async_nf_init(&imxmd->notifier);
+ 
+ 	return imxmd;
+ 
+@@ -382,14 +398,14 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
+ 	int ret;
+ 
+ 	/* no subdevs? just bail */
+-	if (list_empty(&imxmd->notifier.waiting_list)) {
++	if (list_empty(&imxmd->notifier.asd_list)) {
+ 		v4l2_err(&imxmd->v4l2_dev, "no subdevs\n");
+ 		return -ENODEV;
+ 	}
+ 
+ 	/* prepare the async subdev notifier and register it */
+ 	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
+-	ret = v4l2_async_nf_register(&imxmd->notifier);
++	ret = v4l2_async_nf_register(&imxmd->v4l2_dev, &imxmd->notifier);
+ 	if (ret) {
+ 		v4l2_err(&imxmd->v4l2_dev,
+ 			 "v4l2_async_nf_register failed with %d\n", ret);
+diff --git a/drivers/staging/media/imx/imx-media-dev.c b/drivers/staging/media/imx/imx-media-dev.c
+index be54dca11465..f85462214e22 100644
+--- a/drivers/staging/media/imx/imx-media-dev.c
++++ b/drivers/staging/media/imx/imx-media-dev.c
+@@ -20,7 +20,7 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
+ /* async subdev bound notifier */
+ static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
+ 				  struct v4l2_subdev *sd,
+-				  struct v4l2_async_connection *asd)
++				  struct v4l2_async_subdev *asd)
+ {
+ 	struct imx_media_dev *imxmd = notifier2dev(notifier);
+ 	int ret;
+@@ -101,7 +101,7 @@ static int imx_media_probe(struct platform_device *pdev)
+ 	return ret;
+ }
+ 
+-static void imx_media_remove(struct platform_device *pdev)
++static int imx_media_remove(struct platform_device *pdev)
+ {
+ 	struct imx_media_dev *imxmd =
+ 		(struct imx_media_dev *)platform_get_drvdata(pdev);
+@@ -119,6 +119,8 @@ static void imx_media_remove(struct platform_device *pdev)
+ 	media_device_unregister(&imxmd->md);
+ 	v4l2_device_unregister(&imxmd->v4l2_dev);
+ 	media_device_cleanup(&imxmd->md);
++
++	return 0;
+ }
+ 
+ static const struct of_device_id imx_media_dt_ids[] = {
+@@ -129,7 +131,7 @@ MODULE_DEVICE_TABLE(of, imx_media_dt_ids);
+ 
+ static struct platform_driver imx_media_pdrv = {
+ 	.probe		= imx_media_probe,
+-	.remove_new	= imx_media_remove,
++	.remove		= imx_media_remove,
+ 	.driver		= {
+ 		.name	= "imx-media",
+ 		.of_match_table	= imx_media_dt_ids,
+diff --git a/drivers/staging/media/imx/imx-media-fim.c b/drivers/staging/media/imx/imx-media-fim.c
+index e28a33d9dec7..3a9182933508 100644
+--- a/drivers/staging/media/imx/imx-media-fim.c
++++ b/drivers/staging/media/imx/imx-media-fim.c
+@@ -68,10 +68,7 @@ struct imx_media_fim {
+ 	bool              stream_on;
+ };
+ 
+-static bool icap_enabled(struct imx_media_fim *fim)
+-{
+-	return fim->icap_flags != IRQ_TYPE_NONE;
+-}
++#define icap_enabled(fim) ((fim)->icap_flags != IRQ_TYPE_NONE)
+ 
+ static void update_fim_nominal(struct imx_media_fim *fim,
+ 			       const struct v4l2_fract *fi)
+@@ -190,6 +187,54 @@ static void frame_interval_monitor(struct imx_media_fim *fim,
+ 		send_fim_event(fim, error_avg);
+ }
+ 
++#ifdef CONFIG_IMX_GPT_ICAP
++/*
++ * Input Capture method of measuring frame intervals. Not subject
++ * to interrupt latency.
++ */
++static void fim_input_capture_handler(int channel, void *dev_id,
++				      ktime_t timestamp)
++{
++	struct imx_media_fim *fim = dev_id;
++	unsigned long flags;
++
++	spin_lock_irqsave(&fim->lock, flags);
++
++	frame_interval_monitor(fim, timestamp);
++
++	if (!completion_done(&fim->icap_first_event))
++		complete(&fim->icap_first_event);
++
++	spin_unlock_irqrestore(&fim->lock, flags);
++}
++
++static int fim_request_input_capture(struct imx_media_fim *fim)
++{
++	init_completion(&fim->icap_first_event);
++
++	return mxc_request_input_capture(fim->icap_channel,
++					 fim_input_capture_handler,
++					 fim->icap_flags, fim);
++}
++
++static void fim_free_input_capture(struct imx_media_fim *fim)
++{
++	mxc_free_input_capture(fim->icap_channel, fim);
++}
++
++#else /* CONFIG_IMX_GPT_ICAP */
++
++static int fim_request_input_capture(struct imx_media_fim *fim)
++{
++	return 0;
++}
++
++static void fim_free_input_capture(struct imx_media_fim *fim)
++{
++}
++
++#endif /* CONFIG_IMX_GPT_ICAP */
++
+ /*
+  * In case we are monitoring the first frame interval after streamon
+  * (when fim->num_skip = 0), we need a valid fim->last_ts before we
+@@ -371,11 +416,12 @@ void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp)
+ }
+ 
+ /* Called by the subdev in its s_stream callback */
+-void imx_media_fim_set_stream(struct imx_media_fim *fim,
+-			      const struct v4l2_fract *fi,
+-			      bool on)
++int imx_media_fim_set_stream(struct imx_media_fim *fim,
++			     const struct v4l2_fract *fi,
++			     bool on)
+ {
+ 	unsigned long flags;
++	int ret = 0;
+ 
+ 	v4l2_ctrl_lock(fim->ctrl[FIM_CL_ENABLE]);
+ 
+@@ -388,13 +434,21 @@ void imx_media_fim_set_stream(struct imx_media_fim *fim,
+ 		update_fim_nominal(fim, fi);
+ 		spin_unlock_irqrestore(&fim->lock, flags);
+ 
+-		if (icap_enabled(fim))
++		if (icap_enabled(fim)) {
++			ret = fim_request_input_capture(fim);
++			if (ret)
++				goto out;
+ 			fim_acquire_first_ts(fim);
++		}
++	} else {
++		if (icap_enabled(fim))
++			fim_free_input_capture(fim);
+ 	}
+ 
+ 	fim->stream_on = on;
+ out:
+ 	v4l2_ctrl_unlock(fim->ctrl[FIM_CL_ENABLE]);
++	return ret;
+ }
+ 
+ int imx_media_fim_add_controls(struct imx_media_fim *fim)
+diff --git a/drivers/staging/media/imx/imx-media-of.c b/drivers/staging/media/imx/imx-media-of.c
+index 118bff988bc7..59f1eb7b62bc 100644
+--- a/drivers/staging/media/imx/imx-media-of.c
++++ b/drivers/staging/media/imx/imx-media-of.c
+@@ -16,10 +16,10 @@
+ #include <video/imx-ipu-v3.h>
+ #include "imx-media.h"
+ 
+-static int imx_media_of_add_csi(struct imx_media_dev *imxmd,
+-				struct device_node *csi_np)
++int imx_media_of_add_csi(struct imx_media_dev *imxmd,
++			 struct device_node *csi_np)
+ {
+-	struct v4l2_async_connection *asd;
++	struct v4l2_async_subdev *asd;
+ 	int ret = 0;
+ 
+ 	if (!of_device_is_available(csi_np)) {
+@@ -31,7 +31,7 @@ static int imx_media_of_add_csi(struct imx_media_dev *imxmd,
+ 	/* add CSI fwnode to async notifier */
+ 	asd = v4l2_async_nf_add_fwnode(&imxmd->notifier,
+ 				       of_fwnode_handle(csi_np),
+-				       struct v4l2_async_connection);
++				       struct v4l2_async_subdev);
+ 	if (IS_ERR(asd)) {
+ 		ret = PTR_ERR(asd);
+ 		if (ret == -EEXIST)
+@@ -41,6 +41,7 @@ static int imx_media_of_add_csi(struct imx_media_dev *imxmd,
+ 
+ 	return ret;
+ }
++EXPORT_SYMBOL_GPL(imx_media_of_add_csi);
+ 
+ int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
+ 			     struct device_node *np)
+diff --git a/drivers/staging/media/imx/imx-media-utils.c b/drivers/staging/media/imx/imx-media-utils.c
+index 064dc562bc96..3e7462112649 100644
+--- a/drivers/staging/media/imx/imx-media-utils.c
++++ b/drivers/staging/media/imx/imx-media-utils.c
+@@ -7,7 +7,7 @@
+ #include <linux/module.h>
+ #include "imx-media.h"
+ 
+-#define IMX_BUS_FMTS(fmt...) ((const u32[]) {fmt, 0})
++#define IMX_BUS_FMTS(fmt...) (const u32[]) {fmt, 0}
+ 
+ /*
+  * List of supported pixel formats for the subdevs.
+@@ -432,15 +432,15 @@ int imx_media_init_cfg(struct v4l2_subdev *sd,
+ 		       struct v4l2_subdev_state *sd_state)
+ {
+ 	struct v4l2_mbus_framefmt *mf_try;
++	struct v4l2_subdev_format format;
+ 	unsigned int pad;
+ 	int ret;
+ 
+ 	for (pad = 0; pad < sd->entity.num_pads; pad++) {
+-		struct v4l2_subdev_format format = {
+-			.pad = pad,
+-			.which = V4L2_SUBDEV_FORMAT_ACTIVE,
+-		};
++		memset(&format, 0, sizeof(format));
+ 
++		format.pad = pad;
++		format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+ 		ret = v4l2_subdev_call(sd, pad, get_fmt, NULL, &format);
+ 		if (ret)
+ 			continue;
+@@ -626,6 +626,36 @@ void imx_media_grp_id_to_sd_name(char *sd_name, int sz, u32 grp_id, int ipu_id)
+ }
+ EXPORT_SYMBOL_GPL(imx_media_grp_id_to_sd_name);
+ 
++struct v4l2_subdev *
++imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
++				struct fwnode_handle *fwnode)
++{
++	struct v4l2_subdev *sd;
++
++	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
++		if (sd->fwnode == fwnode)
++			return sd;
++	}
++
++	return NULL;
++}
++EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_fwnode);
++
++struct v4l2_subdev *
++imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
++				 const char *devname)
++{
++	struct v4l2_subdev *sd;
++
++	list_for_each_entry(sd, &imxmd->v4l2_dev.subdevs, list) {
++		if (!strcmp(devname, dev_name(sd->dev)))
++			return sd;
++	}
++
++	return NULL;
++}
++EXPORT_SYMBOL_GPL(imx_media_find_subdev_by_devname);
++
+ /*
+  * Adds a video device to the master video device list. This is called
+  * when a video device is registered.
+@@ -726,6 +756,25 @@ find_pipeline_entity(struct media_entity *start, u32 grp_id,
+ 	return pad ? pad->entity : NULL;
+ }
+ 
++/*
++ * Find the upstream mipi-csi2 virtual channel reached from the given
++ * start entity in the current pipeline.
++ * Must be called with mdev->graph_mutex held.
++ */
++int imx_media_pipeline_csi2_channel(struct media_entity *start_entity)
++{
++	struct media_pad *pad;
++	int ret = -EPIPE;
++
++	pad = imx_media_pipeline_pad(start_entity, IMX_MEDIA_GRP_ID_CSI2,
++				     0, true);
++	if (pad)
++		ret = pad->index - 1;
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(imx_media_pipeline_csi2_channel);
++
+ /*
+  * Find a subdev reached upstream from the given start entity in
+  * the current pipeline.
+@@ -745,6 +794,58 @@ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
+ }
+ EXPORT_SYMBOL_GPL(imx_media_pipeline_subdev);
+ 
++/*
++ * Find a subdev reached upstream from the given start entity in
++ * the current pipeline.
++ * Must be called with mdev->graph_mutex held.
++ */
++struct video_device *
++imx_media_pipeline_video_device(struct media_entity *start_entity,
++				enum v4l2_buf_type buftype, bool upstream)
++{
++	struct media_entity *me;
++
++	me = find_pipeline_entity(start_entity, 0, buftype, upstream);
++	if (!me)
++		return ERR_PTR(-ENODEV);
++
++	return media_entity_to_video_device(me);
++}
++EXPORT_SYMBOL_GPL(imx_media_pipeline_video_device);
++
++/*
++ * Find a fwnode endpoint that maps to the given subdevice's pad.
++ * If there are multiple endpoints that map to the pad, only the
++ * first endpoint encountered is returned.
++ *
++ * On success the refcount of the returned fwnode endpoint is
++ * incremented.
++ */
++struct fwnode_handle *imx_media_get_pad_fwnode(struct media_pad *pad)
++{
++	struct fwnode_handle *endpoint;
++	struct v4l2_subdev *sd;
++
++	if (!is_media_entity_v4l2_subdev(pad->entity))
++		return ERR_PTR(-ENODEV);
++
++	sd = media_entity_to_v4l2_subdev(pad->entity);
++
++	fwnode_graph_for_each_endpoint(dev_fwnode(sd->dev), endpoint) {
++		int pad_idx = media_entity_get_fwnode_pad(&sd->entity,
++							  endpoint,
++							  pad->flags);
++		if (pad_idx < 0)
++			continue;
++
++		if (pad_idx == pad->index)
++			return endpoint;
++	}
++
++	return ERR_PTR(-ENODEV);
++}
++EXPORT_SYMBOL_GPL(imx_media_get_pad_fwnode);
++
+ /*
+  * Turn current pipeline streaming on/off starting from entity.
+  */
+diff --git a/drivers/staging/media/imx/imx-media.h b/drivers/staging/media/imx/imx-media.h
+index 2640cd34dce2..f263fc3adbb9 100644
+--- a/drivers/staging/media/imx/imx-media.h
++++ b/drivers/staging/media/imx/imx-media.h
+@@ -201,14 +201,25 @@ int imx_media_mbus_fmt_to_pix_fmt(struct v4l2_pix_format *pix,
+ 				  const struct imx_media_pixfmt *cc);
+ void imx_media_grp_id_to_sd_name(char *sd_name, int sz,
+ 				 u32 grp_id, int ipu_id);
++struct v4l2_subdev *
++imx_media_find_subdev_by_fwnode(struct imx_media_dev *imxmd,
++				struct fwnode_handle *fwnode);
++struct v4l2_subdev *
++imx_media_find_subdev_by_devname(struct imx_media_dev *imxmd,
++				 const char *devname);
+ void imx_media_add_video_device(struct imx_media_dev *imxmd,
+ 				struct imx_media_video_dev *vdev);
++int imx_media_pipeline_csi2_channel(struct media_entity *start_entity);
+ struct media_pad *
+ imx_media_pipeline_pad(struct media_entity *start_entity, u32 grp_id,
+ 		       enum v4l2_buf_type buftype, bool upstream);
+ struct v4l2_subdev *
+ imx_media_pipeline_subdev(struct media_entity *start_entity, u32 grp_id,
+ 			  bool upstream);
++struct video_device *
++imx_media_pipeline_video_device(struct media_entity *start_entity,
++				enum v4l2_buf_type buftype, bool upstream);
++struct fwnode_handle *imx_media_get_pad_fwnode(struct media_pad *pad);
+ 
+ struct imx_media_dma_buf {
+ 	void          *virt;
+@@ -236,9 +247,9 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
+ /* imx-media-fim.c */
+ struct imx_media_fim;
+ void imx_media_fim_eof_monitor(struct imx_media_fim *fim, ktime_t timestamp);
+-void imx_media_fim_set_stream(struct imx_media_fim *fim,
+-			      const struct v4l2_fract *frame_interval,
+-			      bool on);
++int imx_media_fim_set_stream(struct imx_media_fim *fim,
++			     const struct v4l2_fract *frame_interval,
++			     bool on);
+ int imx_media_fim_add_controls(struct imx_media_fim *fim);
+ struct imx_media_fim *imx_media_fim_init(struct v4l2_subdev *sd);
+ void imx_media_fim_free(struct imx_media_fim *fim);
+@@ -251,6 +262,8 @@ void imx_media_unregister_ipu_internal_subdevs(struct imx_media_dev *imxmd);
+ /* imx-media-of.c */
+ int imx_media_add_of_subdevs(struct imx_media_dev *dev,
+ 			     struct device_node *np);
++int imx_media_of_add_csi(struct imx_media_dev *imxmd,
++			 struct device_node *csi_np);
+ 
+ /* imx-media-vdic.c */
+ struct v4l2_subdev *imx_media_vdic_register(struct v4l2_device *v4l2_dev,
+@@ -286,6 +299,7 @@ void imx_media_csc_scaler_device_unregister(struct imx_media_video_dev *vdev);
+ 
+ /* subdev group ids */
+ #define IMX_MEDIA_GRP_ID_CSI2          BIT(8)
++#define IMX_MEDIA_GRP_ID_CSI           BIT(9)
+ #define IMX_MEDIA_GRP_ID_IPU_CSI_BIT   10
+ #define IMX_MEDIA_GRP_ID_IPU_CSI       (0x3 << IMX_MEDIA_GRP_ID_IPU_CSI_BIT)
+ #define IMX_MEDIA_GRP_ID_IPU_CSI0      BIT(IMX_MEDIA_GRP_ID_IPU_CSI_BIT)
+diff --git a/drivers/staging/media/imx/imx6-mipi-csi2.c b/drivers/staging/media/imx/imx6-mipi-csi2.c
+index b2d8476d83a0..c4cb558a85c6 100644
+--- a/drivers/staging/media/imx/imx6-mipi-csi2.c
++++ b/drivers/staging/media/imx/imx6-mipi-csi2.c
+@@ -12,7 +12,6 @@
+ #include <linux/module.h>
+ #include <linux/of_graph.h>
+ #include <linux/platform_device.h>
+-#include <media/v4l2-common.h>
+ #include <media/v4l2-device.h>
+ #include <media/v4l2-fwnode.h>
+ #include <media/v4l2-mc.h>
+@@ -565,49 +564,6 @@ static int csi2_registered(struct v4l2_subdev *sd)
+ 				      V4L2_FIELD_NONE, NULL);
+ }
+ 
+-/* --------------- CORE OPS --------------- */
+-
+-static int csi2_log_status(struct v4l2_subdev *sd)
+-{
+-	struct csi2_dev *csi2 = sd_to_dev(sd);
+-
+-	v4l2_info(sd, "-----MIPI CSI status-----\n");
+-	v4l2_info(sd, "VERSION: 0x%x\n",
+-		  readl(csi2->base + CSI2_VERSION));
+-	v4l2_info(sd, "N_LANES: 0x%x\n",
+-		  readl(csi2->base + CSI2_N_LANES));
+-	v4l2_info(sd, "PHY_SHUTDOWNZ: 0x%x\n",
+-		  readl(csi2->base + CSI2_PHY_SHUTDOWNZ));
+-	v4l2_info(sd, "DPHY_RSTZ: 0x%x\n",
+-		  readl(csi2->base + CSI2_DPHY_RSTZ));
+-	v4l2_info(sd, "RESETN: 0x%x\n",
+-		  readl(csi2->base + CSI2_RESETN));
+-	v4l2_info(sd, "PHY_STATE: 0x%x\n",
+-		  readl(csi2->base + CSI2_PHY_STATE));
+-	v4l2_info(sd, "DATA_IDS_1: 0x%x\n",
+-		  readl(csi2->base + CSI2_DATA_IDS_1));
+-	v4l2_info(sd, "DATA_IDS_2: 0x%x\n",
+-		  readl(csi2->base + CSI2_DATA_IDS_2));
+-	v4l2_info(sd, "ERR1: 0x%x\n",
+-		  readl(csi2->base + CSI2_ERR1));
+-	v4l2_info(sd, "ERR2: 0x%x\n",
+-		  readl(csi2->base + CSI2_ERR2));
+-	v4l2_info(sd, "MSK1: 0x%x\n",
+-		  readl(csi2->base + CSI2_MSK1));
+-	v4l2_info(sd, "MSK2: 0x%x\n",
+-		  readl(csi2->base + CSI2_MSK2));
+-	v4l2_info(sd, "PHY_TST_CTRL0: 0x%x\n",
+-		  readl(csi2->base + CSI2_PHY_TST_CTRL0));
+-	v4l2_info(sd, "PHY_TST_CTRL1: 0x%x\n",
+-		  readl(csi2->base + CSI2_PHY_TST_CTRL1));
+-
+-	return 0;
+-}
+-
+-static const struct v4l2_subdev_core_ops csi2_core_ops = {
+-	.log_status = csi2_log_status,
+-};
+-
+ static const struct media_entity_operations csi2_entity_ops = {
+ 	.link_setup = csi2_link_setup,
+ 	.link_validate = v4l2_subdev_link_validate,
+@@ -625,7 +581,6 @@ static const struct v4l2_subdev_pad_ops csi2_pad_ops = {
+ };
+ 
+ static const struct v4l2_subdev_ops csi2_subdev_ops = {
+-	.core = &csi2_core_ops,
+ 	.video = &csi2_video_ops,
+ 	.pad = &csi2_pad_ops,
+ };
+@@ -636,7 +591,7 @@ static const struct v4l2_subdev_internal_ops csi2_internal_ops = {
+ 
+ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
+ 			     struct v4l2_subdev *sd,
+-			     struct v4l2_async_connection *asd)
++			     struct v4l2_async_subdev *asd)
+ {
+ 	struct csi2_dev *csi2 = notifier_to_dev(notifier);
+ 	struct media_pad *sink = &csi2->sd.entity.pads[CSI2_SINK_PAD];
+@@ -659,7 +614,7 @@ static int csi2_notify_bound(struct v4l2_async_notifier *notifier,
+ 
+ static void csi2_notify_unbind(struct v4l2_async_notifier *notifier,
+ 			       struct v4l2_subdev *sd,
+-			       struct v4l2_async_connection *asd)
++			       struct v4l2_async_subdev *asd)
+ {
+ 	struct csi2_dev *csi2 = notifier_to_dev(notifier);
+ 
+@@ -676,11 +631,11 @@ static int csi2_async_register(struct csi2_dev *csi2)
+ 	struct v4l2_fwnode_endpoint vep = {
+ 		.bus_type = V4L2_MBUS_CSI2_DPHY,
+ 	};
+-	struct v4l2_async_connection *asd;
++	struct v4l2_async_subdev *asd;
+ 	struct fwnode_handle *ep;
+ 	int ret;
+ 
+-	v4l2_async_subdev_nf_init(&csi2->notifier, &csi2->sd);
++	v4l2_async_nf_init(&csi2->notifier);
+ 
+ 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(csi2->dev), 0, 0,
+ 					     FWNODE_GRAPH_ENDPOINT_NEXT);
+@@ -697,7 +652,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
+ 	dev_dbg(csi2->dev, "flags: 0x%08x\n", vep.bus.mipi_csi2.flags);
+ 
+ 	asd = v4l2_async_nf_add_fwnode_remote(&csi2->notifier, ep,
+-					      struct v4l2_async_connection);
++					      struct v4l2_async_subdev);
+ 	fwnode_handle_put(ep);
+ 
+ 	if (IS_ERR(asd))
+@@ -705,7 +660,7 @@ static int csi2_async_register(struct csi2_dev *csi2)
+ 
+ 	csi2->notifier.ops = &csi2_notify_ops;
+ 
+-	ret = v4l2_async_nf_register(&csi2->notifier);
++	ret = v4l2_async_subdev_nf_register(&csi2->sd, &csi2->notifier);
+ 	if (ret)
+ 		return ret;
+ 
+@@ -810,7 +765,7 @@ static int csi2_probe(struct platform_device *pdev)
+ 	return ret;
+ }
+ 
+-static void csi2_remove(struct platform_device *pdev)
++static int csi2_remove(struct platform_device *pdev)
+ {
+ 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+ 	struct csi2_dev *csi2 = sd_to_dev(sd);
+@@ -822,6 +777,8 @@ static void csi2_remove(struct platform_device *pdev)
+ 	clk_disable_unprepare(csi2->pllref_clk);
+ 	mutex_destroy(&csi2->lock);
+ 	media_entity_cleanup(&sd->entity);
++
++	return 0;
+ }
+ 
+ static const struct of_device_id csi2_dt_ids[] = {
+@@ -836,7 +793,7 @@ static struct platform_driver csi2_driver = {
+ 		.of_match_table = csi2_dt_ids,
+ 	},
+ 	.probe = csi2_probe,
+-	.remove_new = csi2_remove,
++	.remove = csi2_remove,
+ };
+ 
+ module_platform_driver(csi2_driver);
+diff --git a/drivers/staging/media/imx/imx8-isi-cap.c b/drivers/staging/media/imx/imx8-isi-cap.c
+index c3d6bbeed6a2..4a486813c50b 100644
+--- a/drivers/staging/media/imx/imx8-isi-cap.c
++++ b/drivers/staging/media/imx/imx8-isi-cap.c
+@@ -9,6 +9,8 @@
+  *
+  */
+ 
++#define DEBUG
++
+ #include <linux/module.h>
+ #include <linux/kernel.h>
+ #include <linux/types.h>
+@@ -54,6 +56,15 @@ struct mxc_isi_fmt mxc_isi_src_formats[] = {
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
++	}, {
++		.name		= "RAW_Y10",
++		.fourcc		= V4L2_PIX_FMT_Y10,
++		.depth		= { 16 },
++		.color		= MXC_ISI_OUT_FMT_RAW16,
++		.memplanes	= 1,
++		.colplanes	= 1,
++		.align		= 2,
++		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+ 	}
+ };
+ 
+@@ -85,7 +96,7 @@ struct mxc_isi_fmt *mxc_isi_find_format(const u32 *pixelformat,
+ 			def_fmt = fmt;
+ 		id++;
+ 	}
+-	return def_fmt;
++	return &mxc_isi_out_formats[0];
+ }
+ 
+ struct mxc_isi_fmt *mxc_isi_get_src_fmt(struct v4l2_subdev_format *sd_fmt)
+@@ -102,7 +113,7 @@ struct mxc_isi_fmt *mxc_isi_get_src_fmt(struct v4l2_subdev_format *sd_fmt)
+ 		index = 1;
+ 	else
+ 		index = 0;
+-	return &mxc_isi_src_formats[index];
++	return &mxc_isi_src_formats[2];
+ }
+ 
+ static inline struct mxc_isi_buffer *to_isi_buffer(struct vb2_v4l2_buffer *v4l2_buf)
+@@ -207,7 +218,7 @@ void mxc_isi_cap_frame_write_done(struct mxc_isi_dev *mxc_isi)
+ 		buf = list_first_entry(&isi_cap->out_discard,
+ 				       struct mxc_isi_buffer, list);
+ 		buf->v4l2_buf.sequence = isi_cap->frame_count;
+-		mxc_isi_channel_set_outbuf_loc(mxc_isi, buf);
++		mxc_isi_channel_set_outbuf(mxc_isi, buf);
+ 		list_move_tail(isi_cap->out_discard.next, &isi_cap->out_active);
+ 		goto unlock;
+ 	}
+@@ -215,7 +226,7 @@ void mxc_isi_cap_frame_write_done(struct mxc_isi_dev *mxc_isi)
+ 	/* ISI channel output buffer */
+ 	buf = list_first_entry(&isi_cap->out_pending, struct mxc_isi_buffer, list);
+ 	buf->v4l2_buf.sequence = isi_cap->frame_count;
+-	mxc_isi_channel_set_outbuf_loc(mxc_isi, buf);
++	mxc_isi_channel_set_outbuf(mxc_isi, buf);
+ 	vb2 = &buf->v4l2_buf.vb2_buf;
+ 	vb2->state = VB2_BUF_STATE_ACTIVE;
+ 	list_move_tail(isi_cap->out_pending.next, &isi_cap->out_active);
+@@ -395,7 +406,7 @@ static int cap_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
+ 	buf->v4l2_buf.sequence = 0;
+ 	vb2 = &buf->v4l2_buf.vb2_buf;
+ 	vb2->state = VB2_BUF_STATE_ACTIVE;
+-	mxc_isi_channel_set_outbuf_loc(mxc_isi, buf);
++	mxc_isi_channel_set_outbuf(mxc_isi, buf);
+ 	list_move_tail(isi_cap->out_discard.next, &isi_cap->out_active);
+ 
+ 	/* ISI channel output buffer 2 */
+@@ -403,7 +414,7 @@ static int cap_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
+ 	buf->v4l2_buf.sequence = 1;
+ 	vb2 = &buf->v4l2_buf.vb2_buf;
+ 	vb2->state = VB2_BUF_STATE_ACTIVE;
+-	mxc_isi_channel_set_outbuf_loc(mxc_isi, buf);
++	mxc_isi_channel_set_outbuf(mxc_isi, buf);
+ 	list_move_tail(isi_cap->out_pending.next, &isi_cap->out_active);
+ 
+ 	/* Clear frame count */
+@@ -445,7 +456,7 @@ static void cap_vb2_stop_streaming(struct vb2_queue *q)
+ 
+ 	dev_dbg(&isi_cap->pdev->dev, "%s\n", __func__);
+ 
+-	mxc_isi_channel_disable_loc(mxc_isi);
++	mxc_isi_channel_disable(mxc_isi);
+ 
+ 	spin_lock_irqsave(&isi_cap->slock, flags);
+ 
+@@ -773,12 +784,10 @@ static int mxc_isi_capture_release(struct file *file)
+ 
+ label:
+ 	mutex_lock(&mxc_isi->lock);
+-	if (atomic_read(&mxc_isi->usage_count) == 0) {
+-		mxc_isi->cap_enabled = false;
+-		pm_runtime_put(dev);
+-	}
++	mxc_isi->cap_enabled = false;
+ 	mutex_unlock(&mxc_isi->lock);
+ 
++	pm_runtime_put(dev);
+ 	return (ret) ? ret : 0;
+ }
+ 
+@@ -890,7 +899,7 @@ mxc_isi_cap_fmt_try(struct mxc_isi_cap_dev *isi_cap,
+ 	pix->num_planes = fmt->memplanes;
+ 	pix->pixelformat = fmt->fourcc;
+ 	pix->field = V4L2_FIELD_NONE;
+-	pix->colorspace = V4L2_COLORSPACE_SRGB;
++	pix->colorspace = V4L2_COLORSPACE_RAW;
+ 	pix->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(pix->colorspace);
+ 	pix->quantization = V4L2_QUANTIZATION_FULL_RANGE;
+ 	memset(pix->reserved, 0x00, sizeof(pix->reserved));
+@@ -960,7 +969,7 @@ static int mxc_isi_source_fmt_init(struct mxc_isi_cap_dev *isi_cap)
+ 
+ 	src_fmt.pad = source_pad->index;
+ 	src_fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+-	src_fmt.format.code = MEDIA_BUS_FMT_UYVY8_1X16;
++	src_fmt.format.code = V4L2_PIX_FMT_SGRBG10;
+ 	src_fmt.format.width = dst_f->width;
+ 	src_fmt.format.height = dst_f->height;
+ 	ret = v4l2_subdev_call(src_sd, pad, set_fmt, NULL, &src_fmt);
+@@ -1036,7 +1045,7 @@ static int mxc_isi_cap_s_fmt_mplane(struct file *file, void *priv,
+ 	return 0;
+ }
+ 
+-int mxc_isi_config_parm(struct mxc_isi_cap_dev *isi_cap)
++static int mxc_isi_config_parm(struct mxc_isi_cap_dev *isi_cap)
+ {
+ 	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_cap->pdev);
+ 	int ret;
+@@ -1046,11 +1055,10 @@ int mxc_isi_config_parm(struct mxc_isi_cap_dev *isi_cap)
+ 		return -EINVAL;
+ 
+ 	mxc_isi_channel_init(mxc_isi);
+-	mxc_isi_channel_config_loc(mxc_isi, &isi_cap->src_f, &isi_cap->dst_f);
++	mxc_isi_channel_config(mxc_isi, &isi_cap->src_f, &isi_cap->dst_f);
+ 
+ 	return 0;
+ }
+-EXPORT_SYMBOL_GPL(mxc_isi_config_parm);
+ 
+ static int mxc_isi_cap_g_parm(struct file *file, void *fh,
+ 			      struct v4l2_streamparm *a)
+@@ -1114,7 +1122,7 @@ static int mxc_isi_cap_streamon(struct file *file, void *priv,
+ 
+ 	if (!isi_cap->is_streaming[isi_cap->id] &&
+ 	     q->start_streaming_called) {
+-		mxc_isi_channel_enable_loc(mxc_isi, mxc_isi->m2m_enabled);
++		mxc_isi_channel_enable(mxc_isi, mxc_isi->m2m_enabled);
+ 		ret = mxc_isi_pipeline_enable(isi_cap, 1);
+ 		if (ret < 0 && ret != -ENOIOCTLCMD)
+ 			goto disable;
+@@ -1126,7 +1134,7 @@ static int mxc_isi_cap_streamon(struct file *file, void *priv,
+ 	return 0;
+ 
+ disable:
+-	mxc_isi_channel_disable_loc(mxc_isi);
++	mxc_isi_channel_disable(mxc_isi);
+ power:
+ 	v4l2_subdev_call(src_sd, core, s_power, 0);
+ 	return ret;
+@@ -1149,7 +1157,7 @@ static int mxc_isi_cap_streamoff(struct file *file, void *priv,
+ 
+ 	if (isi_cap->is_streaming[isi_cap->id]) {
+ 		mxc_isi_pipeline_enable(isi_cap, 0);
+-		mxc_isi_channel_disable_loc(mxc_isi);
++		mxc_isi_channel_disable(mxc_isi);
+ 
+ 		isi_cap->is_streaming[isi_cap->id] = 0;
+ 		mxc_isi->is_streaming = 0;
+@@ -1751,7 +1759,6 @@ static const struct v4l2_subdev_internal_ops mxc_isi_capture_sd_internal_ops = {
+ static int isi_cap_probe(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+-	struct device_node *node = dev->of_node;
+ 	struct mxc_isi_dev *mxc_isi;
+ 	struct mxc_isi_cap_dev *isi_cap;
+ 	struct v4l2_subdev *sd;
+@@ -1773,8 +1780,6 @@ static int isi_cap_probe(struct platform_device *pdev)
+ 		return -EPROBE_DEFER;
+ 	}
+ 
+-	isi_cap->runtime_suspend = of_property_read_bool(node, "runtime_suspend");
+-
+ 	isi_cap->pdev = pdev;
+ 	isi_cap->id = mxc_isi->id;
+ 	mxc_isi->isi_cap = isi_cap;
+@@ -1835,73 +1840,6 @@ static int isi_cap_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
+-static int mxc_isi_cap_pm_suspend(struct device *dev)
+-{
+-	struct mxc_isi_cap_dev *isi_cap = dev_get_drvdata(dev);
+-	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_cap->pdev);
+-
+-	if (!isi_cap->runtime_suspend) {
+-		if (mxc_isi->is_streaming) {
+-			dev_warn(dev, "running, prevent entering suspend.\n");
+-			return -EAGAIN;
+-		}
+-	}
+-
+-	return pm_runtime_force_suspend(dev);
+-}
+-
+-static int mxc_isi_cap_pm_resume(struct device *dev)
+-{
+-	return pm_runtime_force_resume(dev);
+-}
+-
+-static int mxc_isi_cap_runtime_suspend(struct device *dev)
+-{
+-	struct mxc_isi_cap_dev *isi_cap = dev_get_drvdata(dev);
+-	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_cap->pdev);
+-
+-	if (isi_cap->runtime_suspend) {
+-		if (isi_cap->is_streaming[isi_cap->id]) {
+-			disp_mix_clks_enable(mxc_isi, false);
+-			mxc_isi_channel_disable_loc(mxc_isi);
+-		}
+-	}
+-
+-	mxc_isi_clk_disable(mxc_isi);
+-
+-	return 0;
+-}
+-
+-static int mxc_isi_cap_runtime_resume(struct device *dev)
+-{
+-	struct mxc_isi_cap_dev *isi_cap = dev_get_drvdata(dev);
+-	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_cap->pdev);
+-	int ret;
+-
+-	ret = mxc_isi_clk_enable(mxc_isi);
+-	if (ret) {
+-		dev_err(dev, "%s clk enable fail\n", __func__);
+-		return ret;
+-	}
+-
+-	if (isi_cap->runtime_suspend) {
+-		if (isi_cap->is_streaming[isi_cap->id]) {
+-			disp_mix_sft_rstn(mxc_isi, false);
+-			disp_mix_clks_enable(mxc_isi, true);
+-			mxc_isi_clean_registers(mxc_isi);
+-			mxc_isi_config_parm(mxc_isi->isi_cap);
+-			mxc_isi_channel_enable_loc(mxc_isi, mxc_isi->m2m_enabled);
+-		}
+-	}
+-
+-	return 0;
+-}
+-
+-static const struct dev_pm_ops mxc_isi_cap_pm_ops = {
+-	LATE_SYSTEM_SLEEP_PM_OPS(mxc_isi_cap_pm_suspend, mxc_isi_cap_pm_resume)
+-	SET_RUNTIME_PM_OPS(mxc_isi_cap_runtime_suspend, mxc_isi_cap_runtime_resume, NULL)
+-};
+-
+ static const struct of_device_id isi_cap_of_match[] = {
+ 	{.compatible = "imx-isi-capture",},
+ 	{ /* sentinel */ },
+@@ -1914,7 +1852,6 @@ static struct platform_driver isi_cap_driver = {
+ 	.driver = {
+ 		.of_match_table = isi_cap_of_match,
+ 		.name		= "isi-capture",
+-		.pm		= &mxc_isi_cap_pm_ops,
+ 	},
+ };
+ module_platform_driver(isi_cap_driver);
+diff --git a/drivers/staging/media/imx/imx8-isi-core.c b/drivers/staging/media/imx/imx8-isi-core.c
+index 147657586c06..95110a56fd1d 100644
+--- a/drivers/staging/media/imx/imx8-isi-core.c
++++ b/drivers/staging/media/imx/imx8-isi-core.c
+@@ -31,10 +31,7 @@ static const struct soc_device_attribute imx8_soc[] = {
+ 		.soc_id   = "i.MX8ULP",
+ 	}, {
+ 		.soc_id   = "i.MX93",
+-	}, {
+-		.soc_id   = "i.MX91P",
+-	}, {
+-		.soc_id   = "i.MX91",
++		.revision = "1.0",
+ 	}, {
+ 		/* sentinel */
+ 	},
+@@ -100,6 +97,24 @@ static int disp_mix_sft_parse_resets(struct mxc_isi_dev *mxc_isi)
+ 	return pdata->rst_ops->parse(mxc_isi);
+ }
+ 
++static int disp_mix_sft_rstn(struct mxc_isi_dev *mxc_isi, bool enable)
++{
++	struct mxc_isi_plat_data const *pdata = mxc_isi->pdata;
++	int ret;
++
++	if (mxc_isi->no_dispmix)
++		return 0;
++
++	if (!pdata->rst_ops ||
++	    !pdata->rst_ops->assert ||
++	    !pdata->rst_ops->deassert)
++		return -EINVAL;
++
++	ret = enable ? pdata->rst_ops->assert(mxc_isi) :
++		       pdata->rst_ops->deassert(mxc_isi);
++	return ret;
++}
++
+ static int disp_mix_clks_get(struct mxc_isi_dev *mxc_isi)
+ {
+ 	struct mxc_isi_plat_data  const *pdata = mxc_isi->pdata;
+@@ -113,6 +128,24 @@ static int disp_mix_clks_get(struct mxc_isi_dev *mxc_isi)
+ 	return pdata->gclk_ops->gclk_get(mxc_isi);
+ }
+ 
++static int disp_mix_clks_enable(struct mxc_isi_dev *mxc_isi, bool enable)
++{
++	struct mxc_isi_plat_data const *pdata = mxc_isi->pdata;
++	int ret;
++
++	if (mxc_isi->no_dispmix)
++		return 0;
++
++	if (!pdata->gclk_ops ||
++	    !pdata->gclk_ops->gclk_enable ||
++	    !pdata->gclk_ops->gclk_disable)
++		return -EINVAL;
++
++	ret = enable ? pdata->gclk_ops->gclk_enable(mxc_isi) :
++		       pdata->gclk_ops->gclk_disable(mxc_isi);
++	return ret;
++}
++
+ static int mxc_imx8_clk_get(struct mxc_isi_dev *mxc_isi)
+ {
+ 	struct device *dev = &mxc_isi->pdev->dev;
+@@ -598,6 +631,26 @@ static int mxc_isi_clk_get(struct mxc_isi_dev *mxc_isi)
+ 	return ops->clk_get(mxc_isi);
+ }
+ 
++static int mxc_isi_clk_enable(struct mxc_isi_dev *mxc_isi)
++{
++	const struct mxc_isi_dev_ops *ops = mxc_isi->pdata->ops;
++
++	if (!ops || !ops->clk_enable)
++		return -EINVAL;
++
++	return ops->clk_enable(mxc_isi);
++}
++
++static void mxc_isi_clk_disable(struct mxc_isi_dev *mxc_isi)
++{
++	const struct mxc_isi_dev_ops *ops = mxc_isi->pdata->ops;
++
++	if (!ops || !ops->clk_disable)
++		return;
++
++	ops->clk_disable(mxc_isi);
++}
++
+ static int mxc_isi_soc_match(struct mxc_isi_dev *mxc_isi,
+ 			     const struct soc_device_attribute *data)
+ {
+@@ -621,8 +674,7 @@ static int mxc_isi_soc_match(struct mxc_isi_dev *mxc_isi,
+ 		}
+ 	} else if (!strcmp(match->soc_id, "i.MX8MP") ||
+ 		   !strcmp(match->soc_id, "i.MX8ULP") ||
+-		   !strcmp(match->soc_id, "i.MX93") ||
+-		   !strcmp(match->soc_id, "i.MX91")) {
++		   !strcmp(match->soc_id, "i.MX93")) {
+ 		memcpy(ier_reg, &mxc_imx8_isi_ier_v2, sizeof(*ier_reg));
+ 		mxc_isi->buf_active_reverse = true;
+ 	}
+@@ -638,6 +690,7 @@ static int mxc_isi_probe(struct platform_device *pdev)
+ 	const struct of_device_id *of_id;
+ 	int ret = 0;
+ 
++
+ 	mxc_isi = devm_kzalloc(dev, sizeof(*mxc_isi), GFP_KERNEL);
+ 	if (!mxc_isi)
+ 		return -ENOMEM;
+@@ -765,6 +818,13 @@ static int mxc_isi_remove(struct platform_device *pdev)
+ 
+ static int mxc_isi_pm_suspend(struct device *dev)
+ {
++	struct mxc_isi_dev *mxc_isi = dev_get_drvdata(dev);
++
++	if (mxc_isi->is_streaming) {
++		dev_warn(dev, "running, prevent entering suspend.\n");
++		return -EAGAIN;
++	}
++
+ 	return pm_runtime_force_suspend(dev);
+ }
+ 
+@@ -775,16 +835,32 @@ static int mxc_isi_pm_resume(struct device *dev)
+ 
+ static int mxc_isi_runtime_suspend(struct device *dev)
+ {
++	struct mxc_isi_dev *mxc_isi = dev_get_drvdata(dev);
++
++	disp_mix_clks_enable(mxc_isi, false);
++	mxc_isi_clk_disable(mxc_isi);
++
+ 	return 0;
+ }
+ 
+ static int mxc_isi_runtime_resume(struct device *dev)
+ {
++	struct mxc_isi_dev *mxc_isi = dev_get_drvdata(dev);
++	int ret;
++
++	ret = mxc_isi_clk_enable(mxc_isi);
++	if (ret) {
++		dev_err(dev, "%s clk enable fail\n", __func__);
++		return ret;
++	}
++	disp_mix_sft_rstn(mxc_isi, false);
++	disp_mix_clks_enable(mxc_isi, true);
++
+ 	return 0;
+ }
+ 
+ static const struct dev_pm_ops mxc_isi_pm_ops = {
+-	LATE_SYSTEM_SLEEP_PM_OPS(mxc_isi_pm_suspend, mxc_isi_pm_resume)
++	SET_SYSTEM_SLEEP_PM_OPS(mxc_isi_pm_suspend, mxc_isi_pm_resume)
+ 	SET_RUNTIME_PM_OPS(mxc_isi_runtime_suspend, mxc_isi_runtime_resume, NULL)
+ };
+ 
+diff --git a/drivers/staging/media/imx/imx8-isi-core.h b/drivers/staging/media/imx/imx8-isi-core.h
+index e7edb1d6fe0f..fd8d715c4cc9 100644
+--- a/drivers/staging/media/imx/imx8-isi-core.h
++++ b/drivers/staging/media/imx/imx8-isi-core.h
+@@ -39,9 +39,9 @@
+ 
+ #include "imx8-common.h"
+ 
+-#define MXC_ISI_DRIVER_NAME	"mxc-isi_v1"
+-#define MXC_ISI_CAPTURE		"mxc-isi-cap_v1"
+-#define MXC_ISI_M2M		"mxc-isi-m2m_v1"
++#define MXC_ISI_DRIVER_NAME	"mxc-isi"
++#define MXC_ISI_CAPTURE		"mxc-isi-cap"
++#define MXC_ISI_M2M		"mxc-isi-m2m"
+ #define MXC_MAX_PLANES		3
+ 
+ struct mxc_isi_dev;
+@@ -204,9 +204,6 @@ struct mxc_isi_m2m_dev {
+ 	struct mutex lock;
+ 	spinlock_t   slock;
+ 
+-	struct regmap *gpr;
+-
+-	u32 is_streaming[MXC_ISI_MAX_DEVS];
+ 	unsigned int aborting;
+ 	unsigned int frame_count;
+ 
+@@ -218,9 +215,6 @@ struct mxc_isi_m2m_dev {
+ 	u32 req_cap_buf_num;
+ 	u32 req_out_buf_num;
+ 
+-	u32 saved_axi_limit_isi_en;
+-	u32 saved_axi_isi_thresh;
+-
+ 	u8 id;
+ 	int refcnt;
+ };
+@@ -326,7 +320,6 @@ struct mxc_isi_cap_dev {
+ 	u32 frame_count;
+ 	u32 id;
+ 	u32 is_streaming[MXC_ISI_MAX_DEVS];
+-	bool runtime_suspend;
+ 	bool is_link_setup;
+ 
+ 	struct mutex lock;
+@@ -451,60 +444,4 @@ static inline void bounds_adjust(struct mxc_isi_frame *f, struct v4l2_rect *r)
+ 	if (r->top + r->height >= f->o_height)
+ 		r->height = f->o_height - r->top;
+ }
+-
+-static inline int disp_mix_sft_rstn(struct mxc_isi_dev *mxc_isi, bool enable)
+-{
+-	struct mxc_isi_plat_data const *pdata = mxc_isi->pdata;
+-	int ret;
+-
+-	if (mxc_isi->no_dispmix)
+-		return 0;
+-
+-	if (!pdata->rst_ops ||
+-	    !pdata->rst_ops->assert ||
+-	    !pdata->rst_ops->deassert)
+-		return -EINVAL;
+-
+-	ret = enable ? pdata->rst_ops->assert(mxc_isi) :
+-		       pdata->rst_ops->deassert(mxc_isi);
+-	return ret;
+-}
+-
+-static inline int disp_mix_clks_enable(struct mxc_isi_dev *mxc_isi, bool enable)
+-{
+-	struct mxc_isi_plat_data const *pdata = mxc_isi->pdata;
+-	int ret;
+-
+-	if (mxc_isi->no_dispmix)
+-		return 0;
+-
+-	if (!pdata->gclk_ops ||
+-	    !pdata->gclk_ops->gclk_enable ||
+-	    !pdata->gclk_ops->gclk_disable)
+-		return -EINVAL;
+-
+-	ret = enable ? pdata->gclk_ops->gclk_enable(mxc_isi) :
+-		       pdata->gclk_ops->gclk_disable(mxc_isi);
+-	return ret;
+-}
+-
+-static inline int mxc_isi_clk_enable(struct mxc_isi_dev *mxc_isi)
+-{
+-	const struct mxc_isi_dev_ops *ops = mxc_isi->pdata->ops;
+-
+-	if (!ops || !ops->clk_enable)
+-		return -EINVAL;
+-
+-	return ops->clk_enable(mxc_isi);
+-}
+-
+-static inline void mxc_isi_clk_disable(struct mxc_isi_dev *mxc_isi)
+-{
+-	const struct mxc_isi_dev_ops *ops = mxc_isi->pdata->ops;
+-
+-	if (!ops || !ops->clk_disable)
+-		return;
+-
+-	ops->clk_disable(mxc_isi);
+-}
+ #endif /* __MXC_ISI_CORE_H__ */
+diff --git a/drivers/staging/media/imx/imx8-isi-fmt.c b/drivers/staging/media/imx/imx8-isi-fmt.c
+index db11c809a3d3..36cee7ec22ef 100644
+--- a/drivers/staging/media/imx/imx8-isi-fmt.c
++++ b/drivers/staging/media/imx/imx8-isi-fmt.c
+@@ -7,96 +7,115 @@
+ #include "imx8-isi-core.h"
+ 
+ struct mxc_isi_fmt mxc_isi_out_formats[] = {
++	// {
++	// 	.name		= "RGB565",
++	// 	.fourcc		= V4L2_PIX_FMT_RGB565,
++	// 	.depth		= { 16 },
++	// 	.color		= MXC_ISI_OUT_FMT_RGB565,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 3,
++	// 	.mbus_code  = MEDIA_BUS_FMT_RGB565_1X16,
++	// }, {
++	// 	.name		= "RGB24",
++	// 	.fourcc		= V4L2_PIX_FMT_RGB24,
++	// 	.depth		= { 24 },
++	// 	.color		= MXC_ISI_OUT_FMT_BGR32P,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 2,
++	// 	.mbus_code  = MEDIA_BUS_FMT_RGB888_1X24,
++	// }, {
++	// 	.name		= "BGR24",
++	// 	.fourcc		= V4L2_PIX_FMT_BGR24,
++	// 	.depth		= { 24 },
++	// 	.color		= MXC_ISI_OUT_FMT_RGB32P,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 2,
++	// 	.mbus_code  = MEDIA_BUS_FMT_BGR888_1X24,
++	// }, {
++	// 	.name		= "YUYV-16",
++	// 	.fourcc		= V4L2_PIX_FMT_YUYV,
++	// 	.depth		= { 16 },
++	// 	.color		= MXC_ISI_OUT_FMT_YUV422_1P8P,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 3,
++	// 	.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
++	// }, {
++	// 	.name		= "YUV32 (X-Y-U-V)",
++	// 	.fourcc		= V4L2_PIX_FMT_YUV32,
++	// 	.depth		= { 32 },
++	// 	.color		= MXC_ISI_OUT_FMT_YUV444_1P8,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 2,
++	// 	.mbus_code	= MEDIA_BUS_FMT_AYUV8_1X32,
++	// }, {
++	// 	.name		= "NV12 (YUYV)",
++	// 	.fourcc		= V4L2_PIX_FMT_NV12,
++	// 	.depth		= { 8, 8 },
++	// 	.color		= MXC_ISI_OUT_FMT_YUV420_2P8P,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 2,
++	// 	.align		= 4,
++	// 	.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
++	// }, {
++	// 	.name		= "NV12M (YUYV)",
++	// 	.fourcc		= V4L2_PIX_FMT_NV12M,
++	// 	.depth		= { 8, 8 },
++	// 	.color		= MXC_ISI_OUT_FMT_YUV420_2P8P,
++	// 	.memplanes	= 2,
++	// 	.colplanes	= 2,
++	// 	.align		= 4,
++	// 	.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
++	// }, {
++	// 	.name		= "YUV444M (Y-U-V)",
++	// 	.fourcc		= V4L2_PIX_FMT_YUV444M,
++	// 	.depth		= { 8, 8, 8 },
++	// 	.color		= MXC_ISI_OUT_FMT_YUV444_3P8P,
++	// 	.memplanes	= 3,
++	// 	.colplanes	= 3,
++	// 	.align		= 4,
++	// 	.mbus_code	= MEDIA_BUS_FMT_YUV8_1X24,
++	// }, {
++	// 	.name		= "xBGR32",
++	// 	.fourcc		= V4L2_PIX_FMT_XBGR32,
++	// 	.depth		= { 32 },
++	// 	.color		= MXC_ISI_OUT_FMT_XRGB32,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 2,
++	// 	.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
++	// }, {
++	// 	.name		= "ABGR32",
++	// 	.fourcc		= V4L2_PIX_FMT_ABGR32,
++	// 	.depth		= { 32 },
++	// 	.color		= MXC_ISI_OUT_FMT_ARGB32,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 2,
++	// 	.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
++	// }, {
++	// 	.name		= "BA10",
++	// 	.fourcc		= V4L2_PIX_FMT_SGRBG10,
++	// 	.depth		= { 16 },
++	// 	.color		= MXC_ISI_OUT_FMT_RAW16,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// 	.align		= 2,
++	// 	.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
++	// },
+ 	{
+-		.name		= "RGB565",
+-		.fourcc		= V4L2_PIX_FMT_RGB565,
++		.name		= "RAW_Y10",
++		.fourcc		= V4L2_PIX_FMT_Y10,
+ 		.depth		= { 16 },
+-		.color		= MXC_ISI_OUT_FMT_RGB565,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 3,
+-		.mbus_code  = MEDIA_BUS_FMT_RGB565_1X16,
+-	}, {
+-		.name		= "RGB24",
+-		.fourcc		= V4L2_PIX_FMT_RGB24,
+-		.depth		= { 24 },
+-		.color		= MXC_ISI_OUT_FMT_BGR32P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code  = MEDIA_BUS_FMT_RGB888_1X24,
+-	}, {
+-		.name		= "BGR24",
+-		.fourcc		= V4L2_PIX_FMT_BGR24,
+-		.depth		= { 24 },
+-		.color		= MXC_ISI_OUT_FMT_RGB32P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code  = MEDIA_BUS_FMT_BGR888_1X24,
+-	}, {
+-		.name		= "YUYV-16",
+-		.fourcc		= V4L2_PIX_FMT_YUYV,
+-		.depth		= { 16 },
+-		.color		= MXC_ISI_OUT_FMT_YUV422_1P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 3,
+-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
+-	}, {
+-		.name		= "YUV32 (X-Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUV32,
+-		.depth		= { 32 },
+-		.color		= MXC_ISI_OUT_FMT_YUV444_1P8,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_AYUV8_1X32,
+-	}, {
+-		.name		= "NV12 (YUYV)",
+-		.fourcc		= V4L2_PIX_FMT_NV12,
+-		.depth		= { 8, 8 },
+-		.color		= MXC_ISI_OUT_FMT_YUV420_2P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 2,
+-		.align		= 4,
+-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
+-	}, {
+-		.name		= "NV12M (YUYV)",
+-		.fourcc		= V4L2_PIX_FMT_NV12M,
+-		.depth		= { 8, 8 },
+-		.color		= MXC_ISI_OUT_FMT_YUV420_2P8P,
+-		.memplanes	= 2,
+-		.colplanes	= 2,
+-		.align		= 4,
+-		.mbus_code	= MEDIA_BUS_FMT_YUYV8_1X16,
+-	}, {
+-		.name		= "YUV444M (Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUV444M,
+-		.depth		= { 8, 8, 8 },
+-		.color		= MXC_ISI_OUT_FMT_YUV444_3P8P,
+-		.memplanes	= 3,
+-		.colplanes	= 3,
+-		.align		= 4,
+-		.mbus_code	= MEDIA_BUS_FMT_YUV8_1X24,
+-	}, {
+-		.name		= "xBGR32",
+-		.fourcc		= V4L2_PIX_FMT_XBGR32,
+-		.depth		= { 32 },
+-		.color		= MXC_ISI_OUT_FMT_XRGB32,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
+-	}, {
+-		.name		= "ABGR32",
+-		.fourcc		= V4L2_PIX_FMT_ABGR32,
+-		.depth		= { 32 },
+-		.color		= MXC_ISI_OUT_FMT_ARGB32,
++		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
+ 		.align		= 2,
+-		.mbus_code	= MEDIA_BUS_FMT_RGB888_1X24,
++		.mbus_code	= MEDIA_BUS_FMT_Y10_1X10,
+ 	}
+ };
+ 
+diff --git a/drivers/staging/media/imx/imx8-isi-hw.c b/drivers/staging/media/imx/imx8-isi-hw.c
+index f3b2b98798be..eac3bcf85da3 100644
+--- a/drivers/staging/media/imx/imx8-isi-hw.c
++++ b/drivers/staging/media/imx/imx8-isi-hw.c
+@@ -125,8 +125,7 @@ static bool is_yuv(u32 pix_fmt)
+ 	if ((pix_fmt == V4L2_PIX_FMT_YUYV)  ||
+ 	    (pix_fmt == V4L2_PIX_FMT_YUV32) ||
+ 	    (pix_fmt == V4L2_PIX_FMT_YUV444M) ||
+-	    (pix_fmt == V4L2_PIX_FMT_NV12) ||
+-	    (pix_fmt == V4L2_PIX_FMT_NV12M))
++	    (pix_fmt == V4L2_PIX_FMT_NV12))
+ 		return true;
+ 	else
+ 		return false;
+@@ -199,8 +198,8 @@ struct mxc_isi_dev *mxc_isi_get_hostdata(struct platform_device *pdev)
+ }
+ EXPORT_SYMBOL_GPL(mxc_isi_get_hostdata);
+ 
+-void mxc_isi_channel_set_outbuf_loc(struct mxc_isi_dev *mxc_isi,
+-				    struct mxc_isi_buffer *buf)
++void mxc_isi_channel_set_outbuf(struct mxc_isi_dev *mxc_isi,
++				struct mxc_isi_buffer *buf)
+ {
+ 	struct vb2_buffer *vb2_buf = &buf->v4l2_buf.vb2_buf;
+ 	u32 framecount = buf->v4l2_buf.sequence;
+@@ -232,7 +231,7 @@ void mxc_isi_channel_set_outbuf_loc(struct mxc_isi_dev *mxc_isi,
+ 	}
+ 	writel(val, mxc_isi->regs + CHNL_OUT_BUF_CTRL);
+ }
+-EXPORT_SYMBOL_GPL(mxc_isi_channel_set_outbuf_loc);
++EXPORT_SYMBOL_GPL(mxc_isi_channel_set_outbuf);
+ 
+ void mxc_isi_channel_set_m2m_src_addr(struct mxc_isi_dev *mxc_isi,
+ 			struct mxc_isi_buffer *buf)
+@@ -305,7 +304,7 @@ void mxc_isi_channel_source_config(struct mxc_isi_dev *mxc_isi)
+ }
+ EXPORT_SYMBOL_GPL(mxc_isi_channel_source_config);
+ 
+-void mxc_isi_channel_set_flip_loc(struct mxc_isi_dev *mxc_isi)
++void mxc_isi_channel_set_flip(struct mxc_isi_dev *mxc_isi)
+ {
+ 	u32 val;
+ 
+@@ -383,7 +382,7 @@ void mxc_isi_channel_set_alpha_roi0(struct mxc_isi_dev *mxc_isi,
+ 	writel(val0 + val1, mxc_isi->regs + CHNL_ROI_0_LRC);
+ }
+ 
+-void mxc_isi_channel_set_alpha_loc(struct mxc_isi_dev *mxc_isi)
++void mxc_isi_channel_set_alpha(struct mxc_isi_dev *mxc_isi)
+ {
+ 	u32 val;
+ 
+@@ -610,9 +609,9 @@ void mxc_isi_channel_deinit(struct mxc_isi_dev *mxc_isi)
+ }
+ EXPORT_SYMBOL_GPL(mxc_isi_channel_deinit);
+ 
+-void mxc_isi_channel_config_loc(struct mxc_isi_dev *mxc_isi,
+-				struct mxc_isi_frame *src_f,
+-				struct mxc_isi_frame *dst_f)
++void mxc_isi_channel_config(struct mxc_isi_dev *mxc_isi,
++			    struct mxc_isi_frame *src_f,
++			    struct mxc_isi_frame *dst_f)
+ {
+ 	u32 val;
+ 
+@@ -642,9 +641,9 @@ void mxc_isi_channel_config_loc(struct mxc_isi_dev *mxc_isi,
+ 	writel(val, mxc_isi->regs + CHNL_OUT_BUF_PITCH);
+ 
+ 	/* TODO */
+-	mxc_isi_channel_set_flip_loc(mxc_isi);
++	mxc_isi_channel_set_flip(mxc_isi);
+ 
+-	mxc_isi_channel_set_alpha_loc(mxc_isi);
++	mxc_isi_channel_set_alpha(mxc_isi);
+ 
+ 	mxc_isi_channel_set_panic_threshold(mxc_isi);
+ 
+@@ -657,7 +656,7 @@ void mxc_isi_channel_config_loc(struct mxc_isi_dev *mxc_isi,
+ 
+ 	writel(val, mxc_isi->regs + CHNL_CTRL);
+ }
+-EXPORT_SYMBOL_GPL(mxc_isi_channel_config_loc);
++EXPORT_SYMBOL_GPL(mxc_isi_channel_config);
+ 
+ void mxc_isi_clean_registers(struct mxc_isi_dev *mxc_isi)
+ {
+@@ -668,7 +667,7 @@ void mxc_isi_clean_registers(struct mxc_isi_dev *mxc_isi)
+ }
+ EXPORT_SYMBOL_GPL(mxc_isi_clean_registers);
+ 
+-void mxc_isi_channel_enable_loc(struct mxc_isi_dev *mxc_isi, bool m2m_enabled)
++void mxc_isi_channel_enable(struct mxc_isi_dev *mxc_isi, bool m2m_enabled)
+ {
+ 	u32 val;
+ 
+@@ -695,9 +694,9 @@ void mxc_isi_channel_enable_loc(struct mxc_isi_dev *mxc_isi, bool m2m_enabled)
+ 
+ 	dump_isi_regs(mxc_isi);
+ }
+-EXPORT_SYMBOL_GPL(mxc_isi_channel_enable_loc);
++EXPORT_SYMBOL_GPL(mxc_isi_channel_enable);
+ 
+-void mxc_isi_channel_disable_loc(struct mxc_isi_dev *mxc_isi)
++void mxc_isi_channel_disable(struct mxc_isi_dev *mxc_isi)
+ {
+ 	u32 val;
+ 
+@@ -709,7 +708,7 @@ void mxc_isi_channel_disable_loc(struct mxc_isi_dev *mxc_isi)
+ 	val |= (CHNL_CTRL_CLK_EN_DISABLE << CHNL_CTRL_CLK_EN_OFFSET);
+ 	writel(val, mxc_isi->regs + CHNL_CTRL);
+ }
+-EXPORT_SYMBOL_GPL(mxc_isi_channel_disable_loc);
++EXPORT_SYMBOL_GPL(mxc_isi_channel_disable);
+ 
+ void  mxc_isi_enable_irq(struct mxc_isi_dev *mxc_isi)
+ {
+diff --git a/drivers/staging/media/imx/imx8-isi-hw.h b/drivers/staging/media/imx/imx8-isi-hw.h
+index b17f1b10addc..f9979362ffc8 100644
+--- a/drivers/staging/media/imx/imx8-isi-hw.h
++++ b/drivers/staging/media/imx/imx8-isi-hw.h
+@@ -421,37 +421,22 @@
+ #define  CHNL_FLOW_CTRL_FC_NUMER_MASK		0xFF0000
+ #define  CHNL_FLOW_CTRL_FC_NUMER_OFFSET		0
+ 
+-/* The AXI limit register offset */
+-#define AXI_LIMIT_CONTROL_OFFSET		0x12c
+-#define AXI_LIMIT_THRESH1_OFFSET		0x134
+-
+-/* The AXI limit enable register config */
+-#define AXI_LIMIT_LCDIF0_EN			BIT(0)
+-#define AXI_LIMIT_LCDIF1_EN			BIT(1)
+-#define AXI_LIMIT_ISI_EN			BIT(2)
+-#define AXI_LIMIT_DEWARP_EN			BIT(3)
+-
+-/* The AXI isi limit thresh */
+-#define AXI_LIMIT_ISI_THRESH			0x10
+-
+ enum isi_csi_coeff {
+ 	YUV2RGB = 0,
+ 	RGB2YUV,
+ };
+ 
+-int mxc_isi_config_parm(struct mxc_isi_cap_dev *isi_cap);
+-
+ void mxc_isi_channel_init(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_deinit(struct mxc_isi_dev *mxc_isi);
+-void mxc_isi_channel_enable_loc(struct mxc_isi_dev *mxc_isi, bool m2m_enabled);
+-void mxc_isi_channel_disable_loc(struct mxc_isi_dev *mxc_isi);
++void mxc_isi_channel_enable(struct mxc_isi_dev *mxc_isi, bool m2m_enabled);
++void mxc_isi_channel_disable(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_cap_frame_write_done(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_set_deinterlace(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_sw_reset(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_hw_reset(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_source_config(struct mxc_isi_dev *mxc_isi);
+-void mxc_isi_channel_set_flip_loc(struct mxc_isi_dev *mxc_isi);
+-void mxc_isi_channel_set_alpha_loc(struct mxc_isi_dev *mxc_isi);
++void mxc_isi_channel_set_flip(struct mxc_isi_dev *mxc_isi);
++void mxc_isi_channel_set_alpha(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_set_chain_buf(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_set_deinterlace(struct mxc_isi_dev *mxc_isi);
+ void mxc_isi_channel_set_crop(struct mxc_isi_dev *mxc_isi,
+@@ -463,16 +448,16 @@ void mxc_isi_channel_set_scaling(struct mxc_isi_dev *mxc_isi,
+ 				 struct mxc_isi_frame *src_f,
+ 				 struct mxc_isi_frame *dst_f);
+ 
+-void mxc_isi_channel_set_outbuf_loc(struct mxc_isi_dev *mxc_isi,
+-				    struct mxc_isi_buffer *buf);
++void mxc_isi_channel_set_outbuf(struct mxc_isi_dev *mxc_isi,
++				struct mxc_isi_buffer *buf);
+ 
+ void mxc_isi_channel_set_csc(struct mxc_isi_dev *mxc_isi,
+ 			     struct mxc_isi_frame *src_f,
+ 			     struct mxc_isi_frame *dst_f);
+ 
+-void mxc_isi_channel_config_loc(struct mxc_isi_dev *mxc_isi,
+-				struct mxc_isi_frame *src_f,
+-				struct mxc_isi_frame *dst_f);
++void mxc_isi_channel_config(struct mxc_isi_dev *mxc_isi,
++			    struct mxc_isi_frame *src_f,
++			    struct mxc_isi_frame *dst_f);
+ 
+ void mxc_isi_channel_set_alpha_roi0(struct mxc_isi_dev *mxc_isi,
+ 				    struct v4l2_rect *rect);
+@@ -497,5 +482,4 @@ bool is_buf_active(struct mxc_isi_dev *mxc_isi, int buf_id);
+ 
+ struct device *mxc_isi_dev_get_parent(struct platform_device *pdev);
+ struct mxc_isi_dev *mxc_isi_get_hostdata(struct platform_device *pdev);
+-
+ #endif /* __MXC_ISI_HW_H__ */
+diff --git a/drivers/staging/media/imx/imx8-isi-m2m.c b/drivers/staging/media/imx/imx8-isi-m2m.c
+index 792665b206a8..6fe4c6f86180 100644
+--- a/drivers/staging/media/imx/imx8-isi-m2m.c
++++ b/drivers/staging/media/imx/imx8-isi-m2m.c
+@@ -21,7 +21,6 @@
+ #include <linux/slab.h>
+ #include <linux/of_graph.h>
+ #include <linux/videodev2.h>
+-#include <linux/regmap.h>
+ #include <media/v4l2-device.h>
+ #include <media/v4l2-ioctl.h>
+ #include <media/v4l2-mem2mem.h>
+@@ -41,41 +40,51 @@
+ 
+ struct mxc_isi_fmt mxc_isi_input_formats[] = {
+ 	/* Pixel link input format */
++	// {
++	// 	.name		= "XBGR32",
++	// 	.fourcc		= V4L2_PIX_FMT_XBGR32,
++	// 	.depth		= { 32 },
++	// 	.color =	MXC_ISI_M2M_IN_FMT_XRGB8,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// }, {
++	// 	.name		= "RGB565",
++	// 	.fourcc		= V4L2_PIX_FMT_RGB565,
++	// 	.depth		= { 16 },
++	// 	.color =	MXC_ISI_M2M_IN_FMT_RGB565,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// }, {
++	// 	.name		= "YUV32 (X-Y-U-V)",
++	// 	.fourcc		= V4L2_PIX_FMT_YUV32,
++	// 	.depth		= { 32 },
++	// 	.color = MXC_ISI_M2M_IN_FMT_YUV444_1P8P,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// }, {
++	// 	.name		= "YUV16 (X-Y-U-V)",
++	// 	.fourcc		= V4L2_PIX_FMT_YUYV,
++	// 	.depth		= { 16 },
++	// 	.color = MXC_ISI_M2M_IN_FMT_YUV422_1P8P,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// }, {
++	// 	.name		= "RGBA (R-G-B-A)",
++	// 	.fourcc		= V4L2_PIX_FMT_RGBA32,
++	// 	.depth		= { 32 },
++	// 	.color = MXC_ISI_M2M_IN_FMT_XBGR8,
++	// 	.memplanes	= 1,
++	// 	.colplanes	= 1,
++	// },
+ 	{
+-		.name		= "XBGR32",
+-		.fourcc		= V4L2_PIX_FMT_XBGR32,
+-		.depth		= { 32 },
+-		.color =	MXC_ISI_M2M_IN_FMT_XRGB8,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "RGB565",
+-		.fourcc		= V4L2_PIX_FMT_RGB565,
++		.name		= "BA10",
++		.fourcc		= V4L2_PIX_FMT_SGRBG10,
+ 		.depth		= { 16 },
+-		.color =	MXC_ISI_M2M_IN_FMT_RGB565,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "YUV32 (X-Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUV32,
+-		.depth		= { 32 },
+-		.color = MXC_ISI_M2M_IN_FMT_YUV444_1P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "YUV16 (X-Y-U-V)",
+-		.fourcc		= V4L2_PIX_FMT_YUYV,
+-		.depth		= { 16 },
+-		.color = MXC_ISI_M2M_IN_FMT_YUV422_1P8P,
+-		.memplanes	= 1,
+-		.colplanes	= 1,
+-	}, {
+-		.name		= "RGBA (R-G-B-A)",
+-		.fourcc		= V4L2_PIX_FMT_RGBA32,
+-		.depth		= { 32 },
+-		.color = MXC_ISI_M2M_IN_FMT_XBGR8,
++		.color		= MXC_ISI_OUT_FMT_RAW16,
+ 		.memplanes	= 1,
+ 		.colplanes	= 1,
++		.align		= 2,
++		.mbus_code	= MEDIA_BUS_FMT_SGRBG10_1X10,
+ 	}
+ };
+ 
+@@ -107,7 +116,7 @@ void mxc_isi_m2m_frame_write_done(struct mxc_isi_dev *mxc_isi)
+ 	fh = &curr_mxc_ctx->fh;
+ 
+ 	if (isi_m2m->aborting) {
+-		mxc_isi_channel_disable_loc(mxc_isi);
++		mxc_isi_channel_disable(mxc_isi);
+ 		dev_warn(&isi_m2m->pdev->dev, "Aborting current job\n");
+ 		goto job_finish;
+ 	}
+@@ -137,7 +146,7 @@ void mxc_isi_m2m_frame_write_done(struct mxc_isi_dev *mxc_isi)
+ 		dst_vbuf->vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+ 		dst_buf = to_isi_buffer(dst_vbuf);
+ 		dst_buf->v4l2_buf.sequence = isi_m2m->frame_count;
+-		mxc_isi_channel_set_outbuf_loc(mxc_isi, dst_buf);
++		mxc_isi_channel_set_outbuf(mxc_isi, dst_buf);
+ 		v4l2_m2m_dst_buf_remove(fh->m2m_ctx);
+ 		b = to_v4l2_m2m_buffer(dst_vbuf);
+ 		list_add_tail(&b->list, &isi_m2m->out_active);
+@@ -171,7 +180,7 @@ static void mxc_isi_m2m_device_run(void *priv)
+ 
+ 	src_buf = to_isi_buffer(vbuf);
+ 	mxc_isi_channel_set_m2m_src_addr(mxc_isi, src_buf);
+-	mxc_isi_channel_enable_loc(mxc_isi, mxc_isi->m2m_enabled);
++	mxc_isi_channel_enable(mxc_isi, mxc_isi->m2m_enabled);
+ 
+ unlock:
+ 	spin_unlock_irqrestore(&isi_m2m->slock, flags);
+@@ -368,7 +377,7 @@ static int m2m_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
+ 	dst_vbuf->vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+ 	dst_buf = to_isi_buffer(dst_vbuf);
+ 	dst_buf->v4l2_buf.sequence = 0;
+-	mxc_isi_channel_set_outbuf_loc(mxc_isi, dst_buf);
++	mxc_isi_channel_set_outbuf(mxc_isi, dst_buf);
+ 	v4l2_m2m_dst_buf_remove(fh->m2m_ctx);
+ 	b = to_v4l2_m2m_buffer(dst_vbuf);
+ 	list_add_tail(&b->list, &isi_m2m->out_active);
+@@ -382,12 +391,11 @@ static int m2m_vb2_start_streaming(struct vb2_queue *q, unsigned int count)
+ 	dst_vbuf->vb2_buf.state = VB2_BUF_STATE_ACTIVE;
+ 	dst_buf = to_isi_buffer(dst_vbuf);
+ 	dst_buf->v4l2_buf.sequence = 1;
+-	mxc_isi_channel_set_outbuf_loc(mxc_isi, dst_buf);
++	mxc_isi_channel_set_outbuf(mxc_isi, dst_buf);
+ 	v4l2_m2m_dst_buf_remove(fh->m2m_ctx);
+ 	b = to_v4l2_m2m_buffer(dst_vbuf);
+ 	list_add_tail(&b->list, &isi_m2m->out_active);
+ 
+-	isi_m2m->is_streaming[isi_m2m->id] = 1;
+ 	isi_m2m->frame_count = 1;
+ 	isi_m2m->aborting = 0;
+ unlock:
+@@ -419,7 +427,7 @@ static void m2m_vb2_stop_streaming(struct vb2_queue *q)
+ 	}
+ 
+ 	INIT_LIST_HEAD(&isi_m2m->out_active);
+-	isi_m2m->is_streaming[isi_m2m->id] = 0;
++
+ 	spin_unlock_irqrestore(&isi_m2m->slock, flags);
+ }
+ 
+@@ -612,6 +620,7 @@ static int mxc_isi_m2m_open(struct file *file)
+ 	isi_m2m_fmt_init(&isi_m2m->dst_f, &mxc_isi_out_formats[0]);
+ 
+ 	pm_runtime_get_sync(dev);
++	mxc_isi_channel_init(mxc_isi);
+ 
+ 	/* lock host data */
+ 	mxc_isi->m2m_enabled = true;
+@@ -751,6 +760,7 @@ static int mxc_isi_m2m_s_fmt_vid_out(struct file *file, void *priv,
+ 				 struct v4l2_format *f)
+ {
+ 	struct mxc_isi_m2m_dev *isi_m2m = video_drvdata(file);
++	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_m2m->pdev);
+ 	struct v4l2_fh *fh = file->private_data;
+ 	struct mxc_isi_frame *frame = &isi_m2m->src_f;
+ 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
+@@ -811,6 +821,7 @@ static int mxc_isi_m2m_s_fmt_vid_out(struct file *file, void *priv,
+ 	frame->sizeimage[0] = frame->height * frame->bytesperline[0];
+ 
+ 	set_frame_bounds(frame, pix->width, pix->height);
++	mxc_isi_m2m_config_src(mxc_isi, frame);
+ 
+ 	isi_m2m->colorspace = pix->colorspace;
+ 	isi_m2m->xfer_func = pix->xfer_func;
+@@ -824,6 +835,7 @@ static int mxc_isi_m2m_s_fmt_vid_cap(struct file *file, void *priv,
+ 				 struct v4l2_format *f)
+ {
+ 	struct mxc_isi_m2m_dev *isi_m2m = video_drvdata(file);
++	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_m2m->pdev);
+ 	struct v4l2_fh *fh = file->private_data;
+ 	struct mxc_isi_frame *frame = &isi_m2m->dst_f;
+ 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
+@@ -921,6 +933,7 @@ static int mxc_isi_m2m_s_fmt_vid_cap(struct file *file, void *priv,
+ 	memcpy(&isi_m2m->pix, pix, sizeof(*pix));
+ 
+ 	set_frame_bounds(frame, pix->width, pix->height);
++	mxc_isi_m2m_config_dst(mxc_isi, frame);
+ 
+ 	return 0;
+ }
+@@ -987,41 +1000,6 @@ static int mxc_isi_m2m_g_fmt_vid_out(struct file *file, void *fh,
+ 	return 0;
+ }
+ 
+-static void mxc_isi_axi_limit_set(struct mxc_isi_m2m_dev *isi_m2m)
+-{
+-	u32 val = 0;
+-
+-	if (!isi_m2m->gpr)
+-		return;
+-
+-	regmap_read(isi_m2m->gpr, AXI_LIMIT_CONTROL_OFFSET, &val);
+-	isi_m2m->saved_axi_limit_isi_en = val;
+-	val |= AXI_LIMIT_ISI_EN;
+-	regmap_write(isi_m2m->gpr, AXI_LIMIT_CONTROL_OFFSET, val);
+-
+-	regmap_read(isi_m2m->gpr, AXI_LIMIT_THRESH1_OFFSET, &val);
+-	isi_m2m->saved_axi_isi_thresh = val;
+-	val |= AXI_LIMIT_ISI_THRESH;
+-	regmap_write(isi_m2m->gpr, AXI_LIMIT_THRESH1_OFFSET, val);
+-}
+-
+-static void mxc_isi_axi_limit_clear(struct mxc_isi_m2m_dev *isi_m2m)
+-{
+-	u32 val = 0;
+-
+-	if (!isi_m2m->gpr)
+-		return;
+-
+-	val = isi_m2m->saved_axi_limit_isi_en;
+-	regmap_write(isi_m2m->gpr, AXI_LIMIT_CONTROL_OFFSET, val);
+-
+-	val = isi_m2m->saved_axi_isi_thresh;
+-	regmap_write(isi_m2m->gpr, AXI_LIMIT_THRESH1_OFFSET, val);
+-
+-	isi_m2m->saved_axi_limit_isi_en = 0;
+-	isi_m2m->saved_axi_isi_thresh = 0;
+-}
+-
+ static int mxc_isi_m2m_streamon(struct file *file, void *priv,
+ 			     enum v4l2_buf_type type)
+ {
+@@ -1041,14 +1019,9 @@ static int mxc_isi_m2m_streamon(struct file *file, void *priv,
+ 
+ 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+ 		isi_m2m->frame_count = 0;
+-		mxc_isi_channel_init(mxc_isi);
+-		mxc_isi_m2m_config_src(mxc_isi, src_f);
+-		mxc_isi_m2m_config_dst(mxc_isi, dst_f);
+-		mxc_isi_channel_config_loc(mxc_isi, src_f, dst_f);
++		mxc_isi_channel_config(mxc_isi, src_f, dst_f);
+ 	}
+ 
+-	mxc_isi_axi_limit_set(isi_m2m);
+-
+ 	ret = v4l2_m2m_ioctl_streamon(file, priv, type);
+ 
+ 	return ret;
+@@ -1062,9 +1035,7 @@ static int mxc_isi_m2m_streamoff(struct file *file, void *priv,
+ 	int ret;
+ 
+ 	if (type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+-		mxc_isi_channel_disable_loc(mxc_isi);
+-
+-	mxc_isi_axi_limit_clear(isi_m2m);
++		mxc_isi_channel_disable(mxc_isi);
+ 
+ 	ret = v4l2_m2m_ioctl_streamoff(file, priv, type);
+ 
+@@ -1318,36 +1289,12 @@ void mxc_isi_m2m_ctrls_delete(struct mxc_isi_m2m_dev *isi_m2m)
+ 	}
+ }
+ 
+-static int mxc_isi_m2m_get_blk_ctl_regmap(struct mxc_isi_m2m_dev *isi_m2m)
+-{
+-	struct device *dev = &isi_m2m->pdev->dev;
+-	struct device_node *np = dev->of_node;
+-	struct property *prop;
+-	int sz, ret = 0;
+-
+-	prop = of_find_property(np, "fsl,gpr", &sz);
+-	if (!prop) {
+-		dev_err(dev, "%s missed gpr node!\n", __func__);
+-		return -EINVAL;
+-	}
+-
+-	isi_m2m->gpr = syscon_regmap_lookup_by_phandle(np, "fsl,gpr");
+-	if (IS_ERR(isi_m2m->gpr)) {
+-		ret = PTR_ERR(isi_m2m->gpr);
+-		isi_m2m->gpr = NULL;
+-		dev_err(dev, "%s failed to get regmap of blk ctl!\n", __func__);
+-	}
+-
+-	return ret;
+-}
+-
+ static int isi_m2m_probe(struct platform_device *pdev)
+ {
+ 	struct mxc_isi_dev *mxc_isi;
+ 	struct mxc_isi_m2m_dev *isi_m2m;
+ 	struct v4l2_device *v4l2_dev;
+ 	struct video_device *vdev;
+-	struct device_node *parent;
+ 	int ret = -ENOMEM;
+ 
+ 	isi_m2m = devm_kzalloc(&pdev->dev, sizeof(*isi_m2m), GFP_KERNEL);
+@@ -1371,15 +1318,11 @@ static int isi_m2m_probe(struct platform_device *pdev)
+ 	mxc_isi->isi_m2m = isi_m2m;
+ 	isi_m2m->id = mxc_isi->id;
+ 	isi_m2m->refcnt = 0;
+-	isi_m2m->is_streaming[isi_m2m->id] = 0;
+ 	isi_m2m->colorspace = V4L2_COLORSPACE_SRGB;
+ 	isi_m2m->quant = V4L2_QUANTIZATION_FULL_RANGE;
+ 	isi_m2m->ycbcr_enc = V4L2_MAP_YCBCR_ENC_DEFAULT(isi_m2m->colorspace);
+ 	isi_m2m->xfer_func = V4L2_XFER_FUNC_SRGB;
+ 
+-	isi_m2m->saved_axi_limit_isi_en = 0;
+-	isi_m2m->saved_axi_isi_thresh = 0;
+-
+ 	spin_lock_init(&isi_m2m->slock);
+ 	mutex_init(&isi_m2m->lock);
+ 
+@@ -1390,20 +1333,6 @@ static int isi_m2m_probe(struct platform_device *pdev)
+ 		return PTR_ERR(isi_m2m->m2m_dev);
+ 	}
+ 
+-	/* get the media_blk_ctl regmap, just an work around to fix the isi
+-	 * m2m case met system hung issue on imx8mp platform. isi m2m needs
+-	 * to use media_blk_ctl registers to configure the isi axi limit
+-	 * when do isi m2m.
+-	 */
+-	isi_m2m->gpr = NULL;
+-	parent = of_get_parent(isi_m2m->pdev->dev.of_node);
+-	if (of_device_is_compatible(parent, "fsl,imx8mp-isi")) {
+-		ret = mxc_isi_m2m_get_blk_ctl_regmap(isi_m2m);
+-		if (ret)
+-			dev_err(&pdev->dev, "%s failed to find gpr regmap\n",
+-				__func__);
+-	}
+-
+ 	/* V4L2 device */
+ 	v4l2_dev = &isi_m2m->v4l2_dev;
+ 	strlcpy(v4l2_dev->name, "mx8-isi-m2m", sizeof(v4l2_dev->name));
+@@ -1473,58 +1402,6 @@ static int isi_m2m_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
+-static int mxc_isi_m2m_pm_resume(struct device *dev)
+-{
+-	return pm_runtime_force_resume(dev);
+-}
+-
+-static int mxc_isi_m2m_pm_suspend(struct device *dev)
+-{
+-	struct mxc_isi_m2m_dev *isi_m2m = dev_get_drvdata(dev);
+-
+-	if (isi_m2m->is_streaming[isi_m2m->id]) {
+-		dev_warn(dev, "running, prevent entering suspend.\n");
+-		return -EAGAIN;
+-	}
+-
+-	return pm_runtime_force_suspend(dev);
+-}
+-
+-static int mxc_isi_m2m_runtime_resume(struct device *dev)
+-{
+-	struct mxc_isi_m2m_dev *isi_m2m = dev_get_drvdata(dev);
+-	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_m2m->pdev);
+-	int ret;
+-
+-	ret = mxc_isi_clk_enable(mxc_isi);
+-	if (ret) {
+-		dev_err(dev, "%s clk enable fail\n", __func__);
+-		return ret;
+-	}
+-	disp_mix_sft_rstn(mxc_isi, false);
+-	disp_mix_clks_enable(mxc_isi, true);
+-
+-	return 0;
+-}
+-
+-static int mxc_isi_m2m_runtime_suspend(struct device *dev)
+-{
+-	struct mxc_isi_m2m_dev *isi_m2m = dev_get_drvdata(dev);
+-	struct mxc_isi_dev *mxc_isi = mxc_isi_get_hostdata(isi_m2m->pdev);
+-
+-	disp_mix_clks_enable(mxc_isi, false);
+-	mxc_isi_clk_disable(mxc_isi);
+-
+-	return 0;
+-}
+-
+-static const struct dev_pm_ops mxc_isi_m2m_pm_ops = {
+-	LATE_SYSTEM_SLEEP_PM_OPS(mxc_isi_m2m_pm_suspend,
+-				 mxc_isi_m2m_pm_resume)
+-	SET_RUNTIME_PM_OPS(mxc_isi_m2m_runtime_suspend,
+-			   mxc_isi_m2m_runtime_resume, NULL)
+-};
+-
+ static const struct of_device_id isi_m2m_of_match[] = {
+ 	{.compatible = "imx-isi-m2m",},
+ 	{ /* sentinel */ },
+@@ -1537,7 +1414,6 @@ static struct platform_driver isi_m2m_driver = {
+ 	.driver = {
+ 		.of_match_table = isi_m2m_of_match,
+ 		.name		= "isi-m2m",
+-		.pm             = &mxc_isi_m2m_pm_ops,
+ 	},
+ };
+ 
+diff --git a/drivers/staging/media/imx/imx8-media-dev.c b/drivers/staging/media/imx/imx8-media-dev.c
+index 534fa5a4cd14..34fcc4b15cfe 100644
+--- a/drivers/staging/media/imx/imx8-media-dev.c
++++ b/drivers/staging/media/imx/imx8-media-dev.c
+@@ -560,7 +560,7 @@ static int mxc_md_create_links(struct mxc_md *mxc_md)
+ 
+ static int subdev_notifier_bound(struct v4l2_async_notifier *notifier,
+ 				 struct v4l2_subdev *sd,
+-				 struct v4l2_async_connection *asd)
++				 struct v4l2_async_subdev *asd)
+ {
+ 	struct mxc_md *mxc_md = notifier_to_mxc_md(notifier);
+ 	struct mxc_sensor_info *sensor = NULL;
+@@ -961,7 +961,7 @@ static int register_sensor_entities(struct mxc_md *mxc_md)
+ 	struct device_node *node, *ep, *rem;
+ 	struct v4l2_fwnode_endpoint endpoint;
+ 	struct i2c_client *client;
+-	struct v4l2_async_connection *asd;
++	struct v4l2_async_subdev *asd;
+ 	int index = 0;
+ 	int ret;
+ 
+@@ -976,7 +976,7 @@ static int register_sensor_entities(struct mxc_md *mxc_md)
+ 				v4l2_async_nf_add_fwnode(
+ 						&mxc_md->subdev_notifier,
+ 						mxc_md->sensor[index].fwnode,
+-						struct v4l2_async_connection);
++						struct v4l2_async_subdev);
+ 			mxc_md->num_sensors++;
+ 			index++;
+ 			continue;
+@@ -1037,7 +1037,7 @@ static int register_sensor_entities(struct mxc_md *mxc_md)
+ 		asd = v4l2_async_nf_add_fwnode(
+ 						&mxc_md->subdev_notifier,
+ 						mxc_md->sensor[index].fwnode,
+-						struct v4l2_async_connection);
++						struct v4l2_async_subdev);
+ 		if (IS_ERR(asd)) {
+ 			v4l2_info(&mxc_md->v4l2_dev, "Can't find async subdev\n");
+ 			return PTR_ERR(asd);
+@@ -1088,7 +1088,7 @@ static int mxc_md_probe(struct platform_device *pdev)
+ 		goto clean_md;
+ 	}
+ 
+-	v4l2_async_nf_init(&mxc_md->subdev_notifier, &mxc_md->v4l2_dev);
++	v4l2_async_nf_init(&mxc_md->subdev_notifier);
+ 	ret = mxc_md_register_platform_entities(mxc_md, dev->of_node);
+ 	if (ret < 0)
+ 		goto clean_v4l2;
+@@ -1102,33 +1102,30 @@ static int mxc_md_probe(struct platform_device *pdev)
+ 		mxc_md->valid_num_sensors = 0;
+ 		mxc_md->link_status = 0;
+ 
+-		ret = v4l2_async_nf_register(&mxc_md->subdev_notifier);
++		ret = v4l2_async_nf_register(&mxc_md->v4l2_dev,
++						   &mxc_md->subdev_notifier);
+ 		if (ret < 0) {
+ 			dev_warn(&mxc_md->pdev->dev, "Sensor register failed\n");
+-			goto clean_ents;
++			return ret;
+ 		}
+ 
+ 		if (!mxc_md->link_status) {
+ 			if (mxc_md->valid_num_sensors > 0) {
+ 				ret = subdev_notifier_complete(&mxc_md->subdev_notifier);
+ 				if (ret < 0)
+-					goto err_register_nf;
++					goto clean_ents;
+ 
+ 				mxc_md_clean_unlink_channels(mxc_md);
+ 			} else {
+ 				/* no sensors connected */
+ 				mxc_md_unregister_all(mxc_md);
+ 				v4l2_async_nf_unregister(&mxc_md->subdev_notifier);
+-				v4l2_async_nf_cleanup(&mxc_md->subdev_notifier);
+ 			}
+ 		}
+ 	}
+ 
+ 	return 0;
+ 
+-err_register_nf:
+-	v4l2_async_nf_unregister(&mxc_md->subdev_notifier);
+-	v4l2_async_nf_cleanup(&mxc_md->subdev_notifier);
+ clean_ents:
+ 	mxc_md_unregister_entities(mxc_md);
+ clean_v4l2:
+@@ -1145,8 +1142,8 @@ static int mxc_md_remove(struct platform_device *pdev)
+ 	if (!mxc_md)
+ 		return 0;
+ 
+-	v4l2_async_nf_unregister(&mxc_md->subdev_notifier);
+ 	v4l2_async_nf_cleanup(&mxc_md->subdev_notifier);
++	v4l2_async_nf_unregister(&mxc_md->subdev_notifier);
+ 
+ 	v4l2_device_unregister(&mxc_md->v4l2_dev);
+ 	mxc_md_unregister_entities(mxc_md);
+diff --git a/drivers/staging/media/imx/imx8-mipi-csi2-sam.c b/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
+index c6af060c4497..4e007820ae26 100644
+--- a/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
++++ b/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
+@@ -425,7 +425,7 @@ struct csi_state {
+ 	struct csis_pktbuf pkt_buf;
+ 	struct mipi_csis_event events[MIPI_CSIS_NUM_EVENTS];
+ 
+-	struct v4l2_async_connection asd;
++	struct v4l2_async_subdev    asd;
+ 	struct v4l2_async_notifier  subdev_notifier;
+ 	struct v4l2_async_subdev    *async_subdevs[2];
+ 
+@@ -1785,9 +1785,9 @@ static int mipi_csis_imx8mp_gclk_get(struct csi_state *state)
+ 
+ 	state->csi_aclk = devm_clk_get_optional(dev, "media_blk_csi_aclk");
+ 	if (IS_ERR(state->csi_aclk)) {
+-		if (PTR_ERR(state->csi_aclk) != -EPROBE_DEFER)
++		if (PTR_ERR(state->csi_pclk) != -EPROBE_DEFER)
+ 			dev_err(dev, "Failed to get media csi aclk\n");
+-		return PTR_ERR(state->csi_aclk);
++		return PTR_ERR(state->csi_pclk);
+ 	}
+ 
+ 	return 0;
+diff --git a/drivers/staging/media/imx/imx8-mipi-csi2.c b/drivers/staging/media/imx/imx8-mipi-csi2.c
+index cb86e8fac4b4..173417d6acac 100644
+--- a/drivers/staging/media/imx/imx8-mipi-csi2.c
++++ b/drivers/staging/media/imx/imx8-mipi-csi2.c
+@@ -30,6 +30,7 @@
+ #include <media/v4l2-subdev.h>
+ #include <media/v4l2-device.h>
+ #include <linux/pm_domain.h>
++#include <linux/pm_runtime.h>
+ 
+ #include "imx8-common.h"
+ 
+@@ -286,7 +287,7 @@ struct mxc_mipi_csi2_dev {
+ 	struct csis_hw_reset hw_reset;
+ 	struct csis_phy_gpr  phy_gpr;
+ 
+-	struct v4l2_async_connection asd;
++	struct v4l2_async_subdev    asd;
+ 	struct v4l2_async_notifier  subdev_notifier;
+ 	struct v4l2_async_subdev    *async_subdevs[2];
+ 
+@@ -304,7 +305,6 @@ struct mxc_mipi_csi2_dev {
+ 	u8  data_lanes[4];
+ 	u8  vchannel;
+ 	u8  running;
+-	bool runtime_suspend;
+ };
+ 
+ struct mxc_hs_info {
+@@ -1021,16 +1021,6 @@ static int mipi_csi2_s_frame_interval(struct v4l2_subdev *sd,
+ 	return v4l2_subdev_call(sen_sd, video, s_frame_interval, interval);
+ }
+ 
+-static void mipi_csi2_hw_config(struct mxc_mipi_csi2_dev *csi2dev)
+-{
+-	mxc_csi2_get_sensor_fmt(csi2dev);
+-	mxc_mipi_csi2_hc_config(csi2dev);
+-	mxc_mipi_csi2_reset(csi2dev);
+-	mxc_mipi_csi2_csr_config(csi2dev);
+-	mxc_mipi_csi2_enable(csi2dev);
+-	mxc_mipi_csi2_reg_dump(csi2dev);
+-}
+-
+ static int mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
+ {
+ 	struct mxc_mipi_csi2_dev *csi2dev = sd_to_mxc_mipi_csi2_dev(sd);
+@@ -1043,14 +1033,17 @@ static int mipi_csi2_s_stream(struct v4l2_subdev *sd, int enable)
+ 	if (enable) {
+ 		pm_runtime_get_sync(dev);
+ 		if (!csi2dev->running++) {
+-			if (!csi2dev->runtime_suspend)
+-				mipi_csi2_hw_config(csi2dev);
++			mxc_csi2_get_sensor_fmt(csi2dev);
++			mxc_mipi_csi2_hc_config(csi2dev);
++			mxc_mipi_csi2_reset(csi2dev);
++			mxc_mipi_csi2_csr_config(csi2dev);
++			mxc_mipi_csi2_enable(csi2dev);
++			mxc_mipi_csi2_reg_dump(csi2dev);
+ 		}
+ 	} else {
+-		if (!--csi2dev->running) {
+-			if (!csi2dev->runtime_suspend)
+-				mxc_mipi_csi2_disable(csi2dev);
+-		}
++		if (!--csi2dev->running)
++			mxc_mipi_csi2_disable(csi2dev);
++
+ 		pm_runtime_put(dev);
+ 	}
+ 
+@@ -1166,8 +1159,6 @@ static int mipi_csi2_parse_dt(struct mxc_mipi_csi2_dev *csi2dev)
+ 
+ 	csi2dev->vchannel = of_property_read_bool(node, "virtual-channel");
+ 
+-	csi2dev->runtime_suspend = of_property_read_bool(node, "runtime_suspend");
+-
+ 	node = of_graph_get_next_endpoint(node, NULL);
+ 	if (!node) {
+ 		dev_err(dev, "No port node\n");
+@@ -1293,21 +1284,20 @@ static int mipi_csi2_remove(struct platform_device *pdev)
+ 	return 0;
+ }
+ 
+-static int mipi_csi2_pm_suspend(struct device *dev)
++static int  mipi_csi2_pm_suspend(struct device *dev)
+ {
+-	struct mxc_mipi_csi2_dev *csi2dev = dev_get_drvdata(dev);
++	struct v4l2_subdev *sd = dev_get_drvdata(dev);
++	struct mxc_mipi_csi2_dev *csi2dev = sd_to_mxc_mipi_csi2_dev(sd);
+ 
+-	if (!csi2dev->runtime_suspend) {
+-		if (csi2dev->running > 0) {
+-			dev_warn(dev, "running, prevent entering suspend.\n");
+-			return -EAGAIN;
+-		}
++	if (csi2dev->running > 0) {
++		dev_warn(dev, "running, prevent entering suspend.\n");
++		return -EAGAIN;
+ 	}
+ 
+ 	return pm_runtime_force_suspend(dev);
+ }
+ 
+-static int mipi_csi2_pm_resume(struct device *dev)
++static int  mipi_csi2_pm_resume(struct device *dev)
+ {
+ 	return pm_runtime_force_resume(dev);
+ }
+@@ -1315,58 +1305,25 @@ static int mipi_csi2_pm_resume(struct device *dev)
+ static int  mipi_csi2_runtime_suspend(struct device *dev)
+ {
+ 	struct mxc_mipi_csi2_dev *csi2dev = dev_get_drvdata(dev);
+-	struct v4l2_subdev *sen_sd;
+-	int ret;
+-
+-	if (csi2dev->runtime_suspend) {
+-		if (csi2dev->running > 0) {
+-			sen_sd = mxc_get_remote_subdev(csi2dev, __func__);
+-			if (!sen_sd)
+-				return -EINVAL;
+-
+-			ret = v4l2_subdev_call(sen_sd, video, s_stream, 0);
+-			if (ret < 0 && ret != -ENOIOCTLCMD)
+-				return ret;
+-		}
+-
+-		mxc_mipi_csi2_disable(csi2dev);
+-		mipi_sc_fw_init(csi2dev, 0);
+-	}
+ 
+ 	mipi_csi2_clk_disable(csi2dev);
+-
+ 	return 0;
+ }
+ 
+ static int  mipi_csi2_runtime_resume(struct device *dev)
+ {
+ 	struct mxc_mipi_csi2_dev *csi2dev = dev_get_drvdata(dev);
+-	struct v4l2_subdev *sen_sd;
+ 	int ret;
+ 
+ 	ret = mipi_csi2_clk_enable(csi2dev);
+ 	if (ret)
+ 		return ret;
+ 
+-	if (csi2dev->runtime_suspend) {
+-		mipi_sc_fw_init(csi2dev, 1);
+-		mipi_csi2_hw_config(csi2dev);
+-		if (csi2dev->running > 0) {
+-			sen_sd = mxc_get_remote_subdev(csi2dev, __func__);
+-			if (!sen_sd)
+-				return -EINVAL;
+-
+-			ret = v4l2_subdev_call(sen_sd, video, s_stream, 1);
+-			if (ret < 0 && ret != -ENOIOCTLCMD)
+-				return ret;
+-		}
+-	}
+-
+ 	return 0;
+ }
+ 
+ static const struct dev_pm_ops mipi_csi_pm_ops = {
+-	LATE_SYSTEM_SLEEP_PM_OPS(mipi_csi2_pm_suspend, mipi_csi2_pm_resume)
++	SET_SYSTEM_SLEEP_PM_OPS(mipi_csi2_pm_suspend, mipi_csi2_pm_resume)
+ 	SET_RUNTIME_PM_OPS(mipi_csi2_runtime_suspend, mipi_csi2_runtime_resume, NULL)
+ };
+ 
+diff --git a/drivers/staging/media/imx/imx8-parallel-csi.c b/drivers/staging/media/imx/imx8-parallel-csi.c
+index fe12df0a6168..51dcda7fe0c4 100644
+--- a/drivers/staging/media/imx/imx8-parallel-csi.c
++++ b/drivers/staging/media/imx/imx8-parallel-csi.c
+@@ -183,7 +183,7 @@ struct mxc_parallel_csi_dev {
+ 	struct clk *clk_pixel;
+ 	bool clk_enable;
+ 
+-	struct v4l2_async_connection	asd;
++	struct v4l2_async_subdev	asd;
+ 	struct v4l2_async_notifier	subdev_notifier;
+ 	struct v4l2_async_subdev	*async_subdevs[2];
+ 	struct v4l2_mbus_framefmt	format;
+@@ -426,7 +426,7 @@ static int get_interface_ctrl_reg1_param(struct mxc_parallel_csi_dev *pcsidev,
+ 		*vsync_pulse = pcsidev->format.width << 1;
+ 		break;
+ 	case PI_V2:
+-		*pixel_width = pcsidev->format.width << 3;
++		*pixel_width = 10;
+ 		*vsync_pulse = pcsidev->format.width - 1;
+ 		break;
+ 	default:
+@@ -987,21 +987,7 @@ static const struct mxc_pcsi_plat_data imx93_pdata = {
+ 	.interface_ctrl_reg1	= 0xc,
+ 	.has_gasket		= true,
+ 	.def_hsync_pol		= 0,
+-	.def_vsync_pol		= 1,
+-	.def_pixel_clk_pol	= 0,
+-	.def_csi_in_data_type	= CSI_IN_DT_YVYU_8,
+-	.pd_ops			= NULL,
+-};
+-
+-static const struct mxc_pcsi_plat_data imx91_pdata = {
+-	.version		= PI_V2,
+-	.if_ctrl_reg		= 0x0,
+-	.interface_status	= 0x4,
+-	.interface_ctrl_reg	= 0x8,
+-	.interface_ctrl_reg1	= 0xc,
+-	.has_gasket		= false,
+-	.def_hsync_pol		= 0,
+-	.def_vsync_pol		= 1,
++	.def_vsync_pol		= 0,
+ 	.def_pixel_clk_pol	= 0,
+ 	.def_csi_in_data_type	= CSI_IN_DT_YVYU_8,
+ 	.pd_ops			= NULL,
+@@ -1017,7 +1003,6 @@ static const struct dev_pm_ops parallel_csi_pm_ops = {
+ static const struct of_device_id parallel_csi_of_match[] = {
+ 	{	.compatible = "fsl,mxc-parallel-csi",   .data = &imx8_pdata},
+ 	{	.compatible = "fsl,imx93-parallel-csi", .data = &imx93_pdata},
+-	{	.compatible = "fsl,imx91-parallel-csi", .data = &imx91_pdata},
+ 	{ /* sentinel */ },
+ };
+ MODULE_DEVICE_TABLE(of, parallel_csi_of_match);

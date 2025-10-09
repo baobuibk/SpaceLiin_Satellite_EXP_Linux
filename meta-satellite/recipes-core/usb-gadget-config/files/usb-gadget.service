@@ -1,0 +1,14 @@
+[Unit]
+Description=USB CDC ACM Gadget Configuration
+After=local-fs.target
+Before=getty.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/usb-gadget-setup.sh
+RemainAfterExit=yes
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

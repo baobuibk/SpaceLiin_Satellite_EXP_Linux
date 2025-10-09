@@ -1,0 +1,39 @@
+diff --git a/arch/arm64/configs/compulab.config b/arch/arm64/configs/compulab.config
+index 297ee1572af6..d7080766fb6e 100644
+--- a/arch/arm64/configs/compulab.config
++++ b/arch/arm64/configs/compulab.config
+@@ -23,3 +23,4 @@ CONFIG_VIDEO_OV5647=n
+ CONFIG_FW_LOADER_USER_HELPER_FALLBACK=n
+ CONFIG_LOCALVERSION="-3.0"
+ CONFIG_LOCALVERSION="-3.0"
++CONFIG_VIDEO_AR2020=m
+diff --git a/drivers/media/i2c/Kconfig b/drivers/media/i2c/Kconfig
+index 1e8141876073..cba576aa2ad9 100644
+--- a/drivers/media/i2c/Kconfig
++++ b/drivers/media/i2c/Kconfig
+@@ -41,6 +41,13 @@ config VIDEO_APTINA_PLL
+ config VIDEO_CCS_PLL
+ 	tristate
+ 
++config VIDEO_AR2020
++        tristate "ON Semiconductor AR2020 camera driver"
++        depends on I2C && VIDEO_DEV
++        help
++          Support for ON Semiconductor AR2020 camera sensor connected over I2C.
++          Say Y or M to enable driver.
++
+ config VIDEO_AR0521
+ 	tristate "ON Semiconductor AR0521 sensor support"
+ 	help
+diff --git a/drivers/media/i2c/Makefile b/drivers/media/i2c/Makefile
+index 04d29000427f..32126128a225 100644
+--- a/drivers/media/i2c/Makefile
++++ b/drivers/media/i2c/Makefile
+@@ -18,6 +18,7 @@ obj-$(CONFIG_VIDEO_ADV7842) += adv7842.o
+ obj-$(CONFIG_VIDEO_AK7375) += ak7375.o
+ obj-$(CONFIG_VIDEO_AK881X) += ak881x.o
+ obj-$(CONFIG_VIDEO_APTINA_PLL) += aptina-pll.o
++obj-$(CONFIG_VIDEO_AR2020) += ar2020.o
+ obj-$(CONFIG_VIDEO_AR0521) += ar0521.o
+ obj-$(CONFIG_VIDEO_BT819) += bt819.o
+ obj-$(CONFIG_VIDEO_BT856) += bt856.o

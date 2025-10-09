@@ -1,0 +1,11 @@
+[Unit]
+Description=First Boot Setup (distribute /home/root/skel_* to users)
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/sbin/firstboot.sh
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target

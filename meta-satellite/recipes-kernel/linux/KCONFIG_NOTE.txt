@@ -1,0 +1,20 @@
+1. ar2020.c copy to /tmp/work/ucm_imx93-poky-linux/linux-compulab/6.6.52/git/drivers/media/i2c
+cp /{$HOME}/{$WORKDIR}/compulab-nxp-bsp/kernel-module/mipi_camera/ar2020.c ./
+
+
+2. Kconfig (có thêm entry VIDEO_AR2020)
+/linux-compulab/6.6.52/git/drivers/media/i2c/Kconfig
+
+compulab-nxp-bsp/compulab-nxp-bsp/build-ucm-imx93/tmp/work/ucm_imx93-poky-linux/linux-compulab/6.6.52/git/drivers/media/i2c$ nano Kconfig
+
+config VIDEO_AR2020
+	tristate "ON Semiconductor AR2020 camera driver"
+	depends on I2C && VIDEO_DEV
+	help
+	  Support for ON Semiconductor AR2020 camera sensor connected over I2C.
+	  Say Y or M to enable driver as builtin or module.
+
+3. Makefile (có thêm dòng obj-$(CONFIG_VIDEO_AR2020) += ar2020.o)
+
+
+4. ar2020.cfg (fragment bật CONFIG_VIDEO_AR2020=m)

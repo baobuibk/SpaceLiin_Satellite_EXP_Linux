@@ -1,0 +1,287 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+#include "ucm-imx93.dtsi"
+#include "ucm-imx93-lvds.dtsi"
+
+/* Override CMA size from ucm-imx93.dtsi */
+&{/reserved-memory/linux,cma} {
+        size = <0 0x20000000>; /* Override to 512MB */
+};
+
+/* ------------------------------------------------ */
+/* Disable some default hardware */
+/* ------------------------------------------------ */
+/* Disable UART2 (DB9) */
+&lpuart2 {
+        status = "disabled";
+};
+
+/* Disable UART5 (BT) */
+&lpuart5 {
+        status = "disabled";
+};
+
+/* Enable CM33 remoteproc */
+&cm33 {
+        status = "okay";
+};
+
+&lvds_backlight {
+    status = "disabled";
+};
+
+&lcdif {
+    status = "disabled";
+};
+
+&ldb {
+    status = "disabled";
+};
+
+&ldb_phy {
+    status = "disabled";
+};
+
+&goodix_ts {
+    status = "disabled";
+};
+
+&usdhc3 {
+    status = "disabled";
+};
+
+/* Disable Ethernet EQOS (eth0) */
+&eqos {
+        status = "disabled";
+};
+
+/* ------------------------------------------------ */
+/* MIPI CSI2 */
+/* ------------------------------------------------ */
+&cameradev {
+        status = "okay";
+};
+
+
+/* I2C3 + AR2020 camera */
+&lpi2c3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <400000>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&pinctrl_lpi2c3>;
+	pinctrl-1 = <&pinctrl_lpi2c3>;
+	status = "okay";
+
+	lane_switch: pca9544@70 {
+		compatible = "nxp,pca9544-switch";
+		reg = <0x70>;
+		status = "okay";
+	};
+
+	sensor_switch: tca6416@20 {
+		compatible = "ti,tca6416-sensor";
+		reg = <0x20>;
+		status = "okay";
+	};
+
+	sensor_mipi2: mipi2@36 {
+		compatible = "onsemi,ar2020";
+		reg = <0x36>;
+		clocks = <&clk IMX93_CLK_MIPI_PHY_CFG>;
+                clock-names = "xvclk";
+                clock-frequency = <27000000>;
+		/* clock source sensor */
+		mclk = <24000000>;
+		mclk_source = <0>;
+		mipi_csi;
+		camera_mipi_lanes = <2>;
+		status = "okay";
+
+		port {
+			ar2020_mipi_ep: endpoint {
+				remote-endpoint = <&mipi_csi_ep>;
+				clock-lanes = <0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <600000000>;
+				clock-noncontinuous;
+			};
+		};
+	};
+};
+
+
+&isi_0 {
+	status = "okay";
+
+	cap_device {
+		status = "okay";
+	};
+};
+
+
+/* MIPI CSI interface */
+&mipi_csi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	port@0 {
+		reg = <0>;
+		mipi_csi_ep: endpoint {
+
+			remote-endpoint = <&ar2020_mipi_ep>;
+			data-lanes = <2>;
+                        cfg-clk-range = <40>;
+                        hs-clk-range = <0x07>;
+			bus-type = <4>;
+			clock-noncontinuous;
+		};
+	};
+};
+
+/* Disable default device */
+&lpi2c3 {
+	wm8962@1a { status = "disabled"; };
+	pca9555@20 { status = "disabled"; };
+	eeprom@54 { status = "disabled"; };
+	goodix@5d { status = "disabled"; };
+};
+
+/* ------------------------------------------------ */
+/* Disable for pinmux */
+/* ------------------------------------------------ */
+&lpuart7 {
+    status = "disabled";
+    pinctrl-0 = <>;
+    pinctrl-names = "";
+};
+
+/* ------------------------------------------------ */
+/* IO Mux */
+/* ------------------------------------------------ */
+&iomuxc {
+    pinctrl_lpi2c7: lpi2c7grp {
+        fsl,pins = <
+            MX93_PAD_GPIO_IO08__LPI2C7_SDA      0x40000b9e
+            MX93_PAD_GPIO_IO09__LPI2C7_SCL      0x40000b9e
+        >;
+    };
+
+    pinctrl_lpi2c8: lpi2c8grp {
+        fsl,pins = <
+            MX93_PAD_GPIO_IO10__LPI2C8_SDA      0x40000b9e
+            MX93_PAD_GPIO_IO11__LPI2C8_SCL      0x40000b9e
+        >;
+    };
+
+    usbpwr_gpio_pins: usbpwr_gpio_pins {
+        fsl,pins = <
+            MX93_PAD_SD3_DATA0__GPIO3_IO22      0x31
+            MX93_PAD_SD3_DATA1__GPIO3_IO23      0x31
+            MX93_PAD_SD3_DATA2__GPIO3_IO24      0x31
+            MX93_PAD_SD3_DATA3__GPIO3_IO25      0x31
+        >;
+    };
+
+    pinctrl_flexcan1: flexcan1grp {
+        fsl,pins = <
+	    MX93_PAD_PDM_CLK__CAN1_TX		0x139e
+	    MX93_PAD_PDM_BIT_STREAM0__CAN1_RX	0x139e
+	>;
+    };
+
+    pinctrl_lpi2c5: lpi2c5grp {
+	 fsl,pins = <
+	    MX93_PAD_GPIO_IO00__LPI2C5_SDA	0x40000b9e
+	    MX93_PAD_GPIO_IO01__LPI2C5_SCL	0x40000b9e
+	>;
+    };
+    
+};
+
+/* ------------------------------------------------ */
+/* New Peripherals */
+/* ------------------------------------------------ */
+&lpi2c7 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    clock-frequency = <400000>;
+    pinctrl-names = "default", "sleep";
+    pinctrl-0 = <&pinctrl_lpi2c7>;
+    pinctrl-1 = <&pinctrl_lpi2c7>;
+    status = "okay";
+};
+
+&lpi2c8 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    clock-frequency = <400000>;
+    pinctrl-names = "default", "sleep";
+    pinctrl-0 = <&pinctrl_lpi2c8>;
+    pinctrl-1 = <&pinctrl_lpi2c8>;
+    status = "okay";
+};
+
+&reg_can2_stby {
+    /delete-property/ gpio;
+    /delete-property/ enable-active-low;
+    enable-active-high;
+};
+
+/ {
+    reg_can1_stby: regulator-can1-stby {
+        compatible = "regulator-fixed";
+        regulator-name = "can1-stby";
+        regulator-min-microvolt = <3300000>;
+        regulator-max-microvolt = <3300000>;
+        enable-active-high;
+        status = "okay";
+    };
+};
+
+&flexcan1 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_flexcan1>;
+    xceiver-supply = <&reg_can1_stby>;
+    status = "okay";
+};
+
+&flexcan2 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_flexcan2>;
+    xceiver-supply = <&reg_can2_stby>;
+    status = "okay";
+};
+
+/* lpi2c5 work as a lpi2c master bus */
+&lpi2c5 {
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_lpi2c5>;
+	status = "okay";
+
+	exprom@64 {
+		compatible = "linux,slave-24c02";
+		reg = <0x40000064>;
+		status = "okay";
+	};
+};
+
+/* ------------------------------------------------ */
+/* New GPIOs */
+/* ------------------------------------------------ */
+&gpio3 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&usbpwr_gpio_pins>;
+    status = "okay";
+   
+    gpio-line-names =
+                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+                     "USB_PWR0",
+                     "USB_PWR1",
+                     "USB_PWR2",
+                     "USB_PWR3",
+                     "", "", "";
+};
+

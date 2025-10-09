@@ -1,0 +1,12 @@
+diff --git a/drivers/staging/media/imx/imx8-mipi-csi2-sam.c b/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
+index c6af060c4497..f577ffc9c5bf 100644
+--- a/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
++++ b/drivers/staging/media/imx/imx8-mipi-csi2-sam.c
+@@ -1161,6 +1161,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *mipi_sd,
+ 	}
+ 
+ 	format->pad = source_pad->index;
++	mf->code = MEDIA_BUS_FMT_SBGGR10_1X10;
+ 	ret = v4l2_subdev_call(sen_sd, pad, set_fmt, NULL, format);
+ 	if (ret < 0) {
+ 		v4l2_err(&state->sd, "%s, set sensor format fail\n", __func__);

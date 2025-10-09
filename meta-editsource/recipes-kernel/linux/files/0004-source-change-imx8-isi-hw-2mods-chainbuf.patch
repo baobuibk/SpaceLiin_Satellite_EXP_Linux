@@ -1,0 +1,108 @@
+diff --git a/drivers/staging/media/imx/imx8-isi-hw.c b/drivers/staging/media/imx/imx8-isi-hw.c
+index f3b2b98798be..2a0c602e9762 100644
+--- a/drivers/staging/media/imx/imx8-isi-hw.c
++++ b/drivers/staging/media/imx/imx8-isi-hw.c
+@@ -142,26 +142,40 @@ bool is_buf_active(struct mxc_isi_dev *mxc_isi, int buf_id)
+ }
+ EXPORT_SYMBOL_GPL(is_buf_active);
+ 
++//static void chain_buf(struct mxc_isi_dev *mxc_isi, struct mxc_isi_frame *frm)
++//{
++//	u32 val;
++//
++//	if (frm->o_width > ISI_2K) {
++//		val = readl(mxc_isi->regs + CHNL_CTRL);
++//		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
++//		val |= (CHNL_CTRL_CHAIN_BUF_2_CHAIN << CHNL_CTRL_CHAIN_BUF_OFFSET);
++//		writel(val, mxc_isi->regs + CHNL_CTRL);
++//		if (mxc_isi->chain)
++//			regmap_write(mxc_isi->chain, CHNL_CTRL, CHNL_CTRL_CLK_EN_MASK);
++//		mxc_isi->chain_buf = 1;
++//	} else {
++//		val = readl(mxc_isi->regs + CHNL_CTRL);
++//		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
++//		writel(val, mxc_isi->regs + CHNL_CTRL);
++//		mxc_isi->chain_buf = 0;
++//	}
++//}
+ static void chain_buf(struct mxc_isi_dev *mxc_isi, struct mxc_isi_frame *frm)
+ {
+-	u32 val;
+-
+-	if (frm->o_width > ISI_2K) {
+-		val = readl(mxc_isi->regs + CHNL_CTRL);
+-		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
+-		val |= (CHNL_CTRL_CHAIN_BUF_2_CHAIN << CHNL_CTRL_CHAIN_BUF_OFFSET);
+-		writel(val, mxc_isi->regs + CHNL_CTRL);
+-		if (mxc_isi->chain)
+-			regmap_write(mxc_isi->chain, CHNL_CTRL, CHNL_CTRL_CLK_EN_MASK);
+-		mxc_isi->chain_buf = 1;
+-	} else {
+-		val = readl(mxc_isi->regs + CHNL_CTRL);
+-		val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
+-		writel(val, mxc_isi->regs + CHNL_CTRL);
+-		mxc_isi->chain_buf = 0;
+-	}
++ 	u32 val = 0;
++	/*
++	 * i.MX93 only has one ISI, so chain buffer mode is not supported,
++	 * even if the output width exceeds 2K (e.g. for 4K resolutions).
++	 * Therefore, we always disable chain buffer.
++	 */
++	val = readl(mxc_isi->regs + CHNL_CTRL);
++	val &= ~CHNL_CTRL_CHAIN_BUF_MASK;
++	writel(val, mxc_isi->regs + CHNL_CTRL);
++	mxc_isi->chain_buf = 0;
+ }
+ 
++
+ struct device *mxc_isi_dev_get_parent(struct platform_device *pdev)
+ {
+ 	struct device *dev = &pdev->dev;
+@@ -340,22 +354,30 @@ void mxc_isi_channel_set_csc(struct mxc_isi_dev *mxc_isi,
+ 
+ 	mxc_isi->cscen = 1;
+ 
+-	if (is_yuv(src_fmt->fourcc) && is_rgb(dst_fmt->fourcc)) {
+-		/* YUV2RGB */
+-		csc = YUV2RGB;
+-		/* YCbCr enable???  */
+-		val |= (CHNL_IMG_CTRL_CSC_MODE_YCBCR2RGB << CHNL_IMG_CTRL_CSC_MODE_OFFSET);
+-		val |= (CHNL_IMG_CTRL_YCBCR_MODE_ENABLE << CHNL_IMG_CTRL_YCBCR_MODE_OFFSET);
+-	} else if (is_rgb(src_fmt->fourcc) && is_yuv(dst_fmt->fourcc)) {
+-		/* RGB2YUV */
+-		csc = RGB2YUV;
+-		val |= (CHNL_IMG_CTRL_CSC_MODE_RGB2YCBCR << CHNL_IMG_CTRL_CSC_MODE_OFFSET);
+-	} else {
+-		/* Bypass CSC */
+-		pr_info("bypass csc\n");
+-		mxc_isi->cscen = 0;
+-		val |= CHNL_IMG_CTRL_CSC_BYPASS_ENABLE;
+-	}
++    	if (dst_fmt->fourcc == V4L2_PIX_FMT_SBGGR10) {
++        	/* Bypass CSC */
++        	printk("%s, %s, %d is using V4L2_PIX_FMT_SBGGR10\n", __FILE__, __FUNCTION__, __LINE__);
++        	pr_info("bypass csc\n");
++        	mxc_isi->cscen = 0;
++        	val |= CHNL_IMG_CTRL_CSC_BYPASS_ENABLE;
++    	} else {
++        	if (is_yuv(src_fmt->fourcc) && is_rgb(dst_fmt->fourcc)) {
++            		/* YUV2RGB */
++            		csc = YUV2RGB;
++            		/* YCbCr enable???  */
++            		val |= (CHNL_IMG_CTRL_CSC_MODE_YCBCR2RGB << CHNL_IMG_CTRL_CSC_MODE_OFFSET);
++            		val |= (CHNL_IMG_CTRL_YCBCR_MODE_ENABLE << CHNL_IMG_CTRL_YCBCR_MODE_OFFSET);
++        	} else if (is_rgb(src_fmt->fourcc) && is_yuv(dst_fmt->fourcc)) {
++            		/* RGB2YUV */
++            		csc = RGB2YUV;
++            		val |= (CHNL_IMG_CTRL_CSC_MODE_RGB2YCBCR << CHNL_IMG_CTRL_CSC_MODE_OFFSET);
++        	} else {
++            		/* Bypass CSC */
++            		pr_info("bypass csc\n");
++            		mxc_isi->cscen = 0;
++            		val |= CHNL_IMG_CTRL_CSC_BYPASS_ENABLE;
++        	}
++    	}
+ 
+ 	printk_pixelformat("input fmt", src_fmt->fourcc);
+ 	printk_pixelformat("output fmt", dst_fmt->fourcc);

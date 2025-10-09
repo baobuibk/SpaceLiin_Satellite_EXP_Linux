@@ -1,0 +1,24 @@
+diff --git a/drivers/staging/media/imx/imx8-mipi-csi2.c b/drivers/staging/media/imx/imx8-mipi-csi2.c
+index cb86e8fac4b4..8d5542d76605 100644
+--- a/drivers/staging/media/imx/imx8-mipi-csi2.c
++++ b/drivers/staging/media/imx/imx8-mipi-csi2.c
+@@ -480,7 +480,8 @@ static void mxc_mipi_csi2_csr_config(struct mxc_mipi_csi2_dev *csi2dev)
+ 	u32 val;
+ 
+ 	/* format */
+-	val = 0;
++//	val = 0;
++	val = ~CSI2SS_DATA_TYPE_RAW10;
+ 	writel(val, csi2dev->csr_regs + CSI2SS_DATA_TYPE);
+ 
+ 	/* polarity */
+@@ -523,7 +524,8 @@ static void mxc_mipi_csi2_hc_config(struct mxc_mipi_csi2_dev *csi2dev)
+ 	writel(0x1FF, csi2dev->base_regs + CSI2RX_IRQ_MASK);
+ 
+ 	/* vid_vc */
+-	writel(3, csi2dev->base_regs + 0x184);
++//	writel(3, csi2dev->base_regs + 0x184);
++	writel(0, csi2dev->base_regs + 0x184);
+ }
+ 
+ static struct media_pad *mxc_csi2_get_remote_sensor_pad(struct mxc_mipi_csi2_dev *csi2dev)

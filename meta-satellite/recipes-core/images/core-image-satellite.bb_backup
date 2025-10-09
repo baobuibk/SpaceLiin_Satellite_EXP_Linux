@@ -1,0 +1,38 @@
+DESCRIPTION = "Satellite production image for i.MX93 \
+Minimal, no GUI, includes devtools, Python, minicom, \
+and USB Ethernet gadget support."
+LICENSE = "MIT"
+
+inherit core-image
+
+
+IMAGE_FEATURES += " \
+    ssh-server-openssh \
+    package-management \
+    debug-tweaks \
+"
+
+CORE_IMAGE_EXTRA_INSTALL += " \
+    nano \
+    minicom \
+    python3 \
+    python3-pip \
+    gcc \
+    g++ \
+    make \
+    gdb \
+    i2c-tools \
+    can-utils \
+    usbutils \
+    ethtool \
+    iproute2 \
+    net-tools \
+    htop \
+    vim \
+    kernel-modules \
+"
+#CORE_IMAGE_EXTRA_INSTALL += " screenfetch "
+#CORE_IMAGE_EXTRA_INSTALL += " lshw procps util-linux lscpu lsb-release "
+CORE_IMAGE_EXTRA_INSTALL += " lshw procps util-linux lsb-release "
+CORE_IMAGE_EXTRA_INSTALL += " v4l-utils "
+CORE_IMAGE_EXTRA_INSTALL += " systemd-mods "

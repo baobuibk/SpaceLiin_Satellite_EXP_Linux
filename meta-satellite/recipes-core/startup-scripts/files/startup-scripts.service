@@ -1,0 +1,12 @@
+[Unit]
+Description=Custom startup scripts runner
+After=network.target local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/root/scripts.d/startup-scripts.sh
+RemainAfterExit=yes
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,63 @@
+diff --git a/drivers/staging/media/imx/dwc-mipi-csi2.c b/drivers/staging/media/imx/dwc-mipi-csi2.c
+index a6cb0d04c20c..df4ce5749abf 100644
+--- a/drivers/staging/media/imx/dwc-mipi-csi2.c
++++ b/drivers/staging/media/imx/dwc-mipi-csi2.c
+@@ -1111,32 +1111,32 @@ static int dwc_mipi_csi2_get_fmt(struct v4l2_subdev *sd,
+ 
+ 	memcpy(mf, &format->format, sizeof(struct v4l2_mbus_framefmt));
+ 
+-	switch (mf->code) {
+-		case MEDIA_BUS_FMT_SRGGB8_1X8:
+-		case MEDIA_BUS_FMT_SGRBG8_1X8:
+-		case MEDIA_BUS_FMT_SGBRG8_1X8:
+-		case MEDIA_BUS_FMT_SBGGR8_1X8:
+-			csi2h->ipi_cfg[0].data_type = DT_RAW8;
+-			csi2h->ipi_cfg[0].color_mode_16 = 0;
+-			break;
+-		case MEDIA_BUS_FMT_SRGGB10_1X10:
+-		case MEDIA_BUS_FMT_SGRBG10_1X10:
+-		case MEDIA_BUS_FMT_SGBRG10_1X10:
+-		case MEDIA_BUS_FMT_SBGGR10_1X10:
+-			csi2h->ipi_cfg[0].data_type = DT_RAW10;
+-			csi2h->ipi_cfg[0].color_mode_16 = 1;
+-			break;
+-		case MEDIA_BUS_FMT_SRGGB12_1X12:
+-		case MEDIA_BUS_FMT_SGRBG12_1X12:
+-		case MEDIA_BUS_FMT_SGBRG12_1X12:
+-		case MEDIA_BUS_FMT_SBGGR12_1X12:
+-			csi2h->ipi_cfg[0].data_type = DT_RAW12;
+-			csi2h->ipi_cfg[0].color_mode_16 = 1;
+-			break;
+-		default:
+-			v4l2_err(&csi2h->sd, "%s, unsupported format code: %d\n", __func__, mf->code);
+-			return -EINVAL;
+-	}
++//	switch (mf->code) {
++//		case MEDIA_BUS_FMT_SRGGB8_1X8:
++//		case MEDIA_BUS_FMT_SGRBG8_1X8:
++//		case MEDIA_BUS_FMT_SGBRG8_1X8:
++//		case MEDIA_BUS_FMT_SBGGR8_1X8:
++//			csi2h->ipi_cfg[0].data_type = DT_RAW8;
++//			csi2h->ipi_cfg[0].color_mode_16 = 0;
++//			break;
++//		case MEDIA_BUS_FMT_SRGGB10_1X10:
++//		case MEDIA_BUS_FMT_SGRBG10_1X10:
++//		case MEDIA_BUS_FMT_SGBRG10_1X10:
++//		case MEDIA_BUS_FMT_SBGGR10_1X10:
++//			csi2h->ipi_cfg[0].data_type = DT_RAW10;
++//			csi2h->ipi_cfg[0].color_mode_16 = 0;
++//			break;
++//		case MEDIA_BUS_FMT_SRGGB12_1X12:
++//		case MEDIA_BUS_FMT_SGRBG12_1X12:
++//		case MEDIA_BUS_FMT_SGBRG12_1X12:
++//		case MEDIA_BUS_FMT_SBGGR12_1X12:
++//			csi2h->ipi_cfg[0].data_type = DT_RAW12;
++//			csi2h->ipi_cfg[0].color_mode_16 = 1;
++//			break;
++//		default:
++//			v4l2_err(&csi2h->sd, "%s, unsupported format code: %d\n", __func__, mf->code);
++//			return -EINVAL;
++//	}
+ 
+ 	return 0;
+ }

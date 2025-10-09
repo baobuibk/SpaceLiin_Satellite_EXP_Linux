@@ -1,0 +1,21 @@
+FILESEXTRAPATHS:prepend := "${THISDIR}/linux-compulab:"
+
+KERNEL_DEVICETREE:append = " compulab/ucm-imx93-satellite.dtb"
+UBOOT_DTB_NAME:ucm-imx93 = "ucm-imx93-satellite.dtb"
+
+KERNEL_CONFIG = "ucm-imx93_defconfig"
+
+SRC_URI += "file://0001-arm64-dts-compulab-add-ucm-imx93-satellite.dts.patch"
+SRC_URI += "file://compulab/ucm-imx93-satellite.dts"
+SRC_URI += "file://ucm-imx93_defconfig"
+
+do_configure:append() {
+    cp ${WORKDIR}/compulab/ucm-imx93-satellite.dts \
+       ${S}/arch/arm64/boot/dts/compulab/ucm-imx93.dts
+}
+
+do_configure:prepend() {
+    cp ${WORKDIR}/ucm-imx93_defconfig \
+       ${S}/arch/arm64/configs/ucm-imx93_defconfig
+}
+
