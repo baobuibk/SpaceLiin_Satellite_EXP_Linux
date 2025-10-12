@@ -22,5 +22,6 @@ SRC_URI += " \
     file://0202_downkernel_changing_from_ref_github.patch \
     file://0203_downkernel_chainbuf_fix.patch \
     file://0204_downkernel_switchlaneswitchsensor_kconfigmakefile.patch \
+    file://0205_downkernel_KconfigMakefile_for_exprom_i2cslave.patch \
 "
 

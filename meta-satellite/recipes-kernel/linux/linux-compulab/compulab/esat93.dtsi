@@ -184,6 +184,12 @@
         >;
     };
 
+    custom_gpio_pins: custom_gpio_pins {
+        fsl,pins = <
+            MX93_PAD_ENET2_RD2__GPIO4_IO26      0x31
+        >;
+    };
+
     pinctrl_flexcan1: flexcan1grp {
         fsl,pins = <
 	    MX93_PAD_PDM_CLK__CAN1_TX		0x139e
@@ -262,7 +268,7 @@
 	status = "okay";
 
 	exprom@64 {
-		compatible = "linux,slave-24c02";
+		compatible = "linux,exprom";
 		reg = <0x40000064>;
 		status = "okay";
 	};
@@ -285,3 +291,16 @@
                      "", "", "";
 };
 
+&gpio4 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&custom_gpio_pins>;
+    status = "okay";
+
+    gpio-line-names =
+                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+                     "",
+                     "",
+                     "",
+                     "",
+                     "I2C5_ENA", "", "";
+};

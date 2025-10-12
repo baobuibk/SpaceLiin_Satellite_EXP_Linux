@@ -13,6 +13,7 @@ SRC_URI += "file://pca9544-switch.c"
 SRC_URI += "file://tca6416-sensor.c"
 SRC_URI += "file://ar2020.cfg"
 SRC_URI += "file://compulab/ucm-imx93-lvds.dts"
+SRC_URI += "file://exprom.c"
 
 KERNEL_CONFIG_FRAGMENTS += "ar2020.cfg"
 
@@ -32,6 +33,8 @@ do_configure:append() {
     cp ${WORKDIR}/pca9544-switch.c ${S}/drivers/media/i2c/
 
     cp ${WORKDIR}/tca6416-sensor.c ${S}/drivers/media/i2c/
+
+    cp ${WORKDIR}/exprom.c ${S}/drivers/i2c/
 }
 
 #do_configure:prepend() {

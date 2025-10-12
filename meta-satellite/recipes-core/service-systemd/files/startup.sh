@@ -9,3 +9,4 @@ ip link set can0 up type can bitrate 500000
 ip link set can1 up type can bitrate 500000
 ip link set can0 up
 ip link set can1 up
+gpioset -c gpiochip2 --daemonize 26=1

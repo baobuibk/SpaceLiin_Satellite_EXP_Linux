@@ -21,6 +21,10 @@ do_install() {
     echo "can-raw"         >> ${D}${sysconfdir}/modules-load.d/can.conf
     echo "can-bcm"         >> ${D}${sysconfdir}/modules-load.d/can.conf
     echo "flexcan"         >> ${D}${sysconfdir}/modules-load.d/can.conf
+
+    # File i2c-slave.conf
+    echo "exprom"          >  ${D}${sysconfdir}/modules-load.d/i2c-slave.conf
+
 }
 
 #do_install() {
@@ -33,4 +37,4 @@ do_install() {
 FILES:${PN} += "${sysconfdir}/modules-load.d/usb-gadget.conf"
 FILES:${PN} += "${sysconfdir}/modules-load.d/csi-camera.conf"
 FILES:${PN} += "${sysconfdir}/modules-load.d/can.conf"
-
+FILES:${PN} += "${sysconfdir}/modules-load.d/i2c-slave.conf"

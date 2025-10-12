@@ -49,6 +49,7 @@ CORE_IMAGE_EXTRA_INSTALL += " systemd-analyze "
 CORE_IMAGE_EXTRA_INSTALL += " sudoers-esat93 "
 
 IMAGE_INSTALL:append = " libsocketcan libsocketcan-dev python3-dev binutils "
+IMAGE_INSTALL:append = " zip unzip "
 
 IMAGE_FEATURES:remove = "read-only-rootfs"
 

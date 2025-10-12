@@ -1,0 +1,28 @@
+diff --git a/drivers/i2c/Kconfig b/drivers/i2c/Kconfig
+index 438905e2a1d0..c207b4a354b2 100644
+--- a/drivers/i2c/Kconfig
++++ b/drivers/i2c/Kconfig
+@@ -125,6 +125,11 @@ config I2C_SLAVE_EEPROM
+ 	  This backend makes Linux behave like an I2C EEPROM. Please read
+ 	  Documentation/i2c/slave-eeprom-backend.rst for further details.
+ 
++config I2C_SLAVE_EXPROM
++        tristate "I2C exprom slave driver EXP-Satellite"
++        help
++          This backend makes Linux behave like an I2C EXPROM. For EXP.
++
+ config I2C_SLAVE_TESTUNIT
+ 	tristate "I2C eeprom testunit driver"
+ 	help
+diff --git a/drivers/i2c/Makefile b/drivers/i2c/Makefile
+index c1d493dc9bac..d24a40fd61e1 100644
+--- a/drivers/i2c/Makefile
++++ b/drivers/i2c/Makefile
+@@ -15,6 +15,7 @@ obj-$(CONFIG_I2C_CHARDEV)	+= i2c-dev.o
+ obj-$(CONFIG_I2C_MUX)		+= i2c-mux.o
+ obj-y				+= algos/ busses/ muxes/
+ obj-$(CONFIG_I2C_STUB)		+= i2c-stub.o
++obj-$(CONFIG_I2C_SLAVE_EXPROM)  += exprom.o
+ obj-$(CONFIG_I2C_SLAVE_EEPROM)	+= i2c-slave-eeprom.o
+ obj-$(CONFIG_I2C_SLAVE_TESTUNIT)	+= i2c-slave-testunit.o
+ 
