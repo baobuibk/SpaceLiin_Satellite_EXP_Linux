@@ -2,7 +2,7 @@
 # temp-logger.sh
 
 LOCK_FILE="/tmp/temp-logger.lock"
-LOG_FILE="/home/root/temp.log"
+LOG_FILE="/home/root/.a55_src/99_log/temp.log"
 
 if [ -e "$LOCK_FILE" ]; then
     echo "Already! Exit!"

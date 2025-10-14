@@ -3,8 +3,8 @@
 # Design: you can drop additional scripts into /home/root/scripts.d/ and they will be started.
 # Example: an additional script "temp-logger.sh" can loop and write to /home/root/temp.log
 
-SCRIPTS_DIR="/home/root/scripts.d"
-LOGFILE="/home/root/custom-scripts.log"
+SCRIPTS_DIR="/usr/bin/scripts.d"
+LOGFILE="/home/root/.a55_src/99_log/custom-scripts.log"
 
 echo "$(date '+%F %T') [Startup] Starting" >> $LOGFILE
 
@@ -25,6 +25,3 @@ done
 
 # Keep the main script alive so systemd tracks it (or you can exit and let systemd manage child restarts)
 # In this design, we simply sleep forever because children run in background and service uses Restart=always
-while true; do
-    sleep 3600
-done

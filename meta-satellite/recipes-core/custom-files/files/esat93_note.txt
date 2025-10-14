@@ -116,3 +116,29 @@ ip link set can0 down
 ip link set can0 up type can bitrate 500000 loopback on
 cansend can0 123#DEADBEEF
 candump can0
+
+#------------------------------------------------------------------------------
+[Install]
+WantedBy=multi-user.target
+-----------------------------------------------------------
+sudo systemctl daemon-reload
+sudo systemctl enable exp_csp_client.service
+sudo systemctl start exp_csp_client.service
+
+[Unit]
+Description=Start CSP Client Directly
+After=network.target
+
+[Service]
+ExecStart=/home/root/.a55_src/00_src/libcsp/00_Dev16/DevBuild/exp_csp_client
+Restart=on-failure
+User=root
+StandardOutput=append:/home/root/.a55_src/99_log/exp-csp.log
+StandardError=append:/home/root/.a55_src/99_log/exp-csp.log
+
+[Install]
+WantedBy=multi-user.target
+#-------------------------------------------------------------------------------
+sudo systemctl daemon-reload
+sudo systemctl enable exp_csp_client.service
+sudo systemctl start exp_csp_client.service

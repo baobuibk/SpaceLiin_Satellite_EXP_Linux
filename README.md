@@ -51,13 +51,13 @@ build-ucm-imx93/tmp/deploy/images/ucm-imx93/core-image-satellite-ucm-imx93-.root
 ```
 ### User Access:
 ```
-   $> usr: root / pwd: 1
-   $> usr: esat93 / pwd: 1
+   $> usr: root / pwd: 1234
+   $> usr: bee / pwd: SLt@2025
 ```
 
 ## DFT
 ### RNDIS USB Ethernet:
-* **`esat93`**
+* **`bee`**
 ``` 
 sudo ifconfig usb0 192.168.6.7 netmask 255.255.255.0 up 
 ```

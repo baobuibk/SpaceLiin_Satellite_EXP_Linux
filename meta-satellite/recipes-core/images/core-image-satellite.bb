@@ -25,6 +25,7 @@ CORE_IMAGE_EXTRA_INSTALL += " \
     python3-cantools \
     python3-gpiod \
     python3-pyserial \ 
+    python3-spidev \
     python3-venv \
     gcc \
     g++ \

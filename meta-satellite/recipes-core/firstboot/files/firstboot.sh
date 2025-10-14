@@ -7,7 +7,7 @@ fi
 
 echo "[FirstBoot] Starting"
 
-for username in esat93; do
+for username in bee; do
     skel="/home/root/skel_${username}"
     HOME_DIR="/home/${username}"
 
@@ -19,8 +19,8 @@ for username in esat93; do
 
         # Logic user
         case "$username" in
-            esat93)
-                echo "[FirstBoot] Special setup for esat93"
+            bee)
+                echo "[FirstBoot] Special setup for bee"
                 ;;
             *)
                 echo "[FirstBoot] No special setup for $username"
@@ -30,6 +30,21 @@ for username in esat93; do
         echo "[FirstBoot] User $username not found; skipping"
     fi
 done
+
+sleep 1
+timedatectl set-ntp false
+
+# Set system time if /etc/custom-time exists
+TIME_FILE="/etc/custom-time"
+if [ -f "$TIME_FILE" ]; then
+    TIME_STR=$(cat "$TIME_FILE")
+    echo "[FirstBoot] Setting system time to: $TIME_STR"
+    date -s "$TIME_STR"
+    hwclock --systohc || true
+else
+    echo "[FirstBoot] No custom time file found at $TIME_FILE"
+fi
+
 
 touch "$FLAG"
 echo "[FirstBoot] Done"

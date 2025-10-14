@@ -152,58 +152,43 @@ static ssize_t i2c_slave_file_bin_write(struct file *filp, struct kobject *kobj,
 	/* Copy data from userspace to kernel buffer */
 	memcpy(&fdata->file_buffer[off], buf, count);
 	
-	/* Update file size if we wrote beyond current size */
-	if (off + count > fdata->file_size) {
-		u32 old_size = fdata->file_size;
+	if (off == 0) {
+		fdata->file_size = count;
+	} else if (off + count > fdata->file_size) {
 		fdata->file_size = off + count;
-		fdata->last_load_size = count;
-		
-		spin_unlock_irqrestore(&fdata->buffer_lock, flags);
-		
-		/* Always print to console and dmesg for new file load */
-		if (off == 0 && old_size == 0) {
-			/* New file loaded from beginning */
-			printk(KERN_INFO "========================================\n");
-			printk(KERN_INFO "exprom: File loaded successfully!\n");
-			printk(KERN_INFO "========================================\n");
-			printk(KERN_INFO "exprom: Size:     %u bytes\n",
-				 fdata->file_size);
+	}
+	fdata->last_load_size = count;
 
-			printk(KERN_INFO "exprom: First 16 bytes:\n");
-			printk(KERN_INFO "exprom:   [00-07]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-				 fdata->file_buffer[0], fdata->file_buffer[1],
-				 fdata->file_buffer[2], fdata->file_buffer[3],
-				 fdata->file_buffer[4], fdata->file_buffer[5],
-				 fdata->file_buffer[6], fdata->file_buffer[7]);
-			printk(KERN_INFO "exprom:   [08-15]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-				 fdata->file_buffer[8], fdata->file_buffer[9],
-				 fdata->file_buffer[10], fdata->file_buffer[11],
-				 fdata->file_buffer[12], fdata->file_buffer[13],
-				 fdata->file_buffer[14], fdata->file_buffer[15]);
-			printk(KERN_INFO "========================================\n");
-			
-			/* Also log to device log (for dmesg filtering) */
-			dev_info(dev, "File loaded: %u bytes\n", fdata->file_size);
-		} else if (off == 0) {
-			/* Overwriting existing file */
-			printk(KERN_INFO "exprom: File overwritten: old_size=%u, new_size=%u bytes\n",
-				 old_size, fdata->file_size);
-			dev_info(dev, "File overwritten: %u bytes\n", fdata->file_size);
-		} else {
-			/* Partial write or append */
-			printk(KERN_INFO "exprom: Data appended: offset=%lld, count=%zu, total=%u bytes\n",
-				 off, count, fdata->file_size);
-			dev_info(dev, "Data appended: %u bytes total\n", fdata->file_size);
-		}
+	spin_unlock_irqrestore(&fdata->buffer_lock, flags);
+
+
+	if (off == 0) {
+    		printk(KERN_INFO "========================================\n");
+    		printk(KERN_INFO "exprom: File loaded or overwritten!\n");
+    		printk(KERN_INFO "========================================\n");
+    		printk(KERN_INFO "exprom: New size: %u bytes\n", fdata->file_size);
+    		printk(KERN_INFO "exprom: First 16 bytes:\n");
+    		printk(KERN_INFO "exprom:   [00-07]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           		fdata->file_buffer[0], fdata->file_buffer[1],
+           		fdata->file_buffer[2], fdata->file_buffer[3],
+           		fdata->file_buffer[4], fdata->file_buffer[5],
+           		fdata->file_buffer[6], fdata->file_buffer[7]);
+    		printk(KERN_INFO "exprom:   [08-15]: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+           		fdata->file_buffer[8], fdata->file_buffer[9],
+           		fdata->file_buffer[10], fdata->file_buffer[11],
+           		fdata->file_buffer[12], fdata->file_buffer[13],
+           		fdata->file_buffer[14], fdata->file_buffer[15]);
+    		printk(KERN_INFO "========================================\n");
+
+    		dev_info(dev, "File loaded/overwritten: %u bytes\n", fdata->file_size);
 	} else {
-		spin_unlock_irqrestore(&fdata->buffer_lock, flags);
-		
-		/* Overwrite in middle of file */
-		printk(KERN_INFO "exprom: Data updated: offset=%lld, count=%zu bytes\n", off, count);
-		dev_info(dev, "Data updated at offset %lld\n", off);
+    		printk(KERN_INFO "exprom: Data updated: offset=%lld, count=%zu bytes\n",
+           		off, count);
+    		dev_info(dev, "Data updated at offset %lld\n", off);
 	}
 
 	return count;
+
 }
 
 static ssize_t i2c_slave_file_bin_read(struct file *filp, struct kobject *kobj,
