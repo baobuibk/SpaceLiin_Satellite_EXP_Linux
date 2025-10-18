@@ -39,6 +39,7 @@ CORE_IMAGE_EXTRA_INSTALL += " \
     net-tools \
     htop \
     vim \
+    tree \
     lrzsz \
     kernel-modules \
 "

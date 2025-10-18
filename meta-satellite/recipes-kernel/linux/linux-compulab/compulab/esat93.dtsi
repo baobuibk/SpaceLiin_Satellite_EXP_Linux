@@ -9,6 +9,22 @@
 };
 
 /* ------------------------------------------------ */
+/* RPMSG Reserved Memory for M33 Communication */
+/* ------------------------------------------------ */
+&{/reserved-memory} {
+    rsc_table {
+        reg = <0 0xa401f000 0 0x1000>;
+    };
+
+    rpmsg_dma_buffer: rpmsg-dma@a4220000 {
+        compatible = "shared-dma-pool";
+        reg = <0 0xa4220000 0 0x8000000>; /* 128MB */
+        no-map;
+    };
+};
+
+
+/* ------------------------------------------------ */
 /* Disable some default hardware */
 /* ------------------------------------------------ */
 /* Disable UART2 (DB9) */
@@ -21,9 +37,12 @@
         status = "disabled";
 };
 
-/* Enable CM33 remoteproc */
+/* Enable CM33 remoteproc with RPMSG memory regions */
 &cm33 {
-        status = "okay";
+	memory-region = <&vdevbuffer>, <&vdev0vring0>, <&vdev0vring1>,
+			<&vdev1vring0>, <&vdev1vring1>, <&rsc_table>,
+			<&rpmsg_dma_buffer>;
+	status = "okay";
 };
 
 &lvds_backlight {
@@ -192,6 +211,7 @@
     custom_gpio_pins: custom_gpio_pins {
         fsl,pins = <
             MX93_PAD_ENET2_RD2__GPIO4_IO26      0x31
+            MX93_PAD_ENET2_TD1__GPIO4_IO18      0x31
         >;
     };
 
@@ -307,7 +327,7 @@
     status = "okay";
 
     gpio-line-names =
-                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "I2C8_ENA", "", "", "",
                      "",
                      "",
                      "",

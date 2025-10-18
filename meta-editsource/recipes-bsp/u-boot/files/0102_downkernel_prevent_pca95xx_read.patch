@@ -1,0 +1,13 @@
+diff --git a/drivers/gpio/pca953x_gpio.c b/drivers/gpio/pca953x_gpio.c
+index c81d2963dc8..6352220c7c8 100644
+--- a/drivers/gpio/pca953x_gpio.c
++++ b/drivers/gpio/pca953x_gpio.c
+@@ -392,7 +392,7 @@ static const struct udevice_id pca953x_ids[] = {
+ 	{ .compatible = "nxp,pca9538", .data = OF_953X(8, PCA_INT), },
+ 	{ .compatible = "nxp,pca9539", .data = OF_953X(16, PCA_INT), },
+ 	{ .compatible = "nxp,pca9554", .data = OF_953X(8, PCA_INT), },
+-	{ .compatible = "nxp,pca9555", .data = OF_953X(16, PCA_INT), },
++	{ .compatible = "nxp,pca9555-DISABLED", .data = OF_953X(16, PCA_INT), },
+ 	{ .compatible = "nxp,pca9556", .data = OF_953X(8, 0), },
+ 	{ .compatible = "nxp,pca9557", .data = OF_953X(8, 0), },
+ 	{ .compatible = "nxp,pca9574", .data = OF_957X(8, PCA_INT), },

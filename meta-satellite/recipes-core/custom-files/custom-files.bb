@@ -13,12 +13,17 @@ SRC_URI += " \
     file://esat93_note.txt \
     file://banner.sh \
     file://run_m33.sh \
+    file://state_m33.sh \
+    file://stop_m33.sh \
     file://setup.sh \
     file://run.sh \
+    file://fw_recv_and_run.sh \ 
     file://libcsp.zip;unpack=no \
     file://test_geni2c.py \
     file://modfsp.py \
-    file://tca6416.py \
+    file://tca6416_21.py \
+    file://tca6416_20.py \
+    file://pca9540.py \
     file://test_i2c.py \
     file://pwm_control.py \
     file://custom-time \
@@ -64,15 +69,20 @@ do_install() {
     install -m 0755 ${WORKDIR}/pin_mux.py ${D}/home/root/tools/
     install -m 0755 ${WORKDIR}/test_geni2c.py ${D}/home/root/tools/
     install -m 0755 ${WORKDIR}/modfsp.py ${D}/home/root/tools/
-    install -m 0755 ${WORKDIR}/tca6416.py ${D}/home/root/tools/
+    install -m 0755 ${WORKDIR}/tca6416_21.py ${D}/home/root/tools/
+    install -m 0755 ${WORKDIR}/tca6416_20.py ${D}/home/root/tools/
+    install -m 0755 ${WORKDIR}/pca9540.py ${D}/home/root/tools/
     install -m 0755 ${WORKDIR}/test_i2c.py ${D}/home/root/tools/
     install -m 0755 ${WORKDIR}/pwm_control.py ${D}/home/root/tools/
     install -m 0755 ${WORKDIR}/setup.sh ${D}/home/root/tools/
     install -m 0755 ${WORKDIR}/run.sh ${D}/home/root/tools/
-    
+    install -m 0755 ${WORKDIR}/run_m33.sh ${D}/home/root/tools/
+    install -m 0755 ${WORKDIR}/stop_m33.sh ${D}/home/root/tools/
+    install -m 0755 ${WORKDIR}/state_m33.sh ${D}/home/root/tools/
+    install -m 0755 ${WORKDIR}/fw_recv_and_run.sh ${D}/home/root/tools/
 
     # copy file into /home/root
-    install -m 0755 ${WORKDIR}/run_m33.sh ${D}/home/root
+    #install -m 0755 ${WORKDIR}/run_m33.sh ${D}/home/root
 
     install -d ${D}/home/root/skel_bee
     install -m 0644 ${WORKDIR}/.welcome_steven ${D}/home/root/skel_bee
@@ -84,6 +94,13 @@ do_install() {
     install -m 0644 ${WORKDIR}/custom-time ${D}${sysconfdir}/custom-time
 
 }
+
+do_install:append() {
+    if [ -f ${D}${sysconfdir}/profile.d/resize.sh ]; then
+        sed -i 's/resize$/eval "\$(resize 2>\/dev\/null)"/' ${D}${sysconfdir}/profile.d/resize.sh
+    fi
+}
+
 
 FILES:${PN} += " \
     /home/root/.welcome_steven \
@@ -101,15 +118,20 @@ FILES:${PN} += " \
     /home/root/tools/pin_mux.py \
     /home/root/tools/test_geni2c.py \
     /home/root/tools/modfsp.py \
-    /home/root/tools/tca6416.py \
+    /home/root/tools/tca6416_21.py \
+    /home/root/tools/tca6416_20.py \
+    /home/root/tools/pca9540.py \
     /home/root/tools/test_i2c.py \
     /home/root/tools/pwm_control.py \
     /home/root/tools/setup.sh \
     /home/root/tools/run.sh \
+    /home/root/tools/run_m33.sh \
+    /home/root/tools/state_m33.sh \
+    /home/root/tools/stop_m33.sh \
+    /home/root/tools/fw_recv_and_run.sh \   
     /home/root/skel_bee/.welcome_steven \
     /home/root/skel_bee/banner.sh \
     /home/root/skel_bee/pin_mux.py \
-    /home/root/run_m33.sh \
     ${sysconfdir}/profile.d/banner.sh \
     ${sysconfdir}/custom-time \
 "

@@ -22,6 +22,11 @@ alias obc_run='/usr/bin/python3 /home/root/.a55_src/00_src/libcsp/00_Dev16/DevSr
 alias m33_run='bash /home/root/tools/run_m33.sh'
 alias m33_stop='bash /home/root/tools/stop_m33.sh'
 alias m33_state='bash /home/root/tools/state_m33.sh'
+alias fw='rm /home/root/*.elf && m33_stop && rz'
+alias m33_fw='bash /home/root/tools/fw_recv_and_run.sh'
 
 echo "Available aliases:"
-alias | grep -E 'exp_run|obc_run|m33_'
+alias | grep -E 'exp_run|obc_run'
+
+echo "===========================================
+"
