@@ -55,6 +55,13 @@ build-ucm-imx93/tmp/deploy/images/ucm-imx93/core-image-satellite-ucm-imx93-.root
    $> usr: bee / pwd: SLt@2025
 ```
 
+### Flashing M33:
+```
+   root$ m33_fw <filename.elf>
+   or default:
+   root$ m33_fw
+```
+
 ## DFT
 ### RNDIS USB Ethernet:
 * **`bee`**
