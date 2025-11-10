@@ -1,0 +1,26 @@
+diff --git a/drivers/rpmsg/Kconfig b/drivers/rpmsg/Kconfig
+index afba55506632..5ff9203cc403 100644
+--- a/drivers/rpmsg/Kconfig
++++ b/drivers/rpmsg/Kconfig
+@@ -118,4 +118,12 @@ config IMX_RPMSG_TTY
+ 	  executed by the command "echo <string> > <accordingly node>", thus
+ 	  remote M core would receive the string.
+ 
++config IMX_RPMSG_HYBRID
++        tristate "IMX RPMSG Hybrid driver -- loadable modules only"
++        default m
++        depends on HAVE_IMX_RPMSG && m
++        help
++          Demostrate the string transmission from A core to the remote M core
++          on the iMX AMP platforms.
++
+ endmenu
+diff --git a/drivers/rpmsg/Makefile b/drivers/rpmsg/Makefile
+index 7c4ee52e92c4..b83983662130 100644
+--- a/drivers/rpmsg/Makefile
++++ b/drivers/rpmsg/Makefile
+@@ -13,3 +13,4 @@ obj-$(CONFIG_RPMSG_VIRTIO)	+= virtio_rpmsg_bus.o
+ obj-$(CONFIG_HAVE_IMX_RPMSG)	+= imx_rpmsg.o
+ obj-$(CONFIG_IMX_RPMSG_PINGPONG)	+= imx_rpmsg_pingpong.o
+ obj-$(CONFIG_IMX_RPMSG_TTY)	+= imx_rpmsg_tty.o
++obj-$(CONFIG_IMX_RPMSG_HYBRID) += imx_rpmsg_hybrid.o

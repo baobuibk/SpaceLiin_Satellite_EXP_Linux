@@ -69,9 +69,20 @@
     status = "disabled";
 };
 
+&usdhc2 {
+    cap-sd-highspeed;
+    max-frequency = <52000000>;  
+    no-1-8-v;                   
+    disable-wp;             
+    no-sdio;
+    no-mmc;
+    status = "okay";
+};
+
+
 /* Disable Ethernet EQOS (eth0) */
 &eqos {
-        status = "disabled";
+        status = "okay";
 };
 
 &tpm4 {
@@ -185,6 +196,13 @@
 /* IO Mux */
 /* ------------------------------------------------ */
 &iomuxc {
+    pinctrl_lpi2c4: lpi2c4grp {
+        fsl,pins = <
+            MX93_PAD_GPIO_IO02__LPI2C4_SDA      0x40000b9e
+            MX93_PAD_GPIO_IO03__LPI2C4_SCL      0x40000b9e
+        >;
+    };
+
     pinctrl_lpi2c7: lpi2c7grp {
         fsl,pins = <
             MX93_PAD_GPIO_IO08__LPI2C7_SDA      0x40000b9e
@@ -201,6 +219,8 @@
 
     usbpwr_gpio_pins: usbpwr_gpio_pins {
         fsl,pins = <
+            MX93_PAD_SD3_CLK__GPIO3_IO20        0x31
+            MX93_PAD_SD3_CMD__GPIO3_IO21        0x31
             MX93_PAD_SD3_DATA0__GPIO3_IO22      0x31
             MX93_PAD_SD3_DATA1__GPIO3_IO23      0x31
             MX93_PAD_SD3_DATA2__GPIO3_IO24      0x31
@@ -234,11 +254,27 @@
             MX93_PAD_GPIO_IO13__TPM4_CH2	0x59e
         >;
     };
+
+    pinctrl_if_pwr: if_pwr_pins {
+        fsl,pins = <
+            MX93_PAD_GPIO_IO17__GPIO2_IO17      0x31e
+        >;
+    };
 };
 
 /* ------------------------------------------------ */
 /* New Peripherals */
 /* ------------------------------------------------ */
+&lpi2c4 {
+    #address-cells = <1>;
+    #size-cells = <0>;
+    clock-frequency = <400000>;
+    pinctrl-names = "default", "sleep";
+    pinctrl-0 = <&pinctrl_lpi2c4>;
+    pinctrl-1 = <&pinctrl_lpi2c4>;
+    status = "okay";
+};
+
 &lpi2c7 {
     #address-cells = <1>;
     #size-cells = <0>;
@@ -274,6 +310,14 @@
         enable-active-high;
         status = "okay";
     };
+};
+
+&usdhc3_pwrseq {
+    status = "disabled";
+};
+
+&usdhc3 {
+    /delete-property/ mmc-pwrseq;
 };
 
 &flexcan1 {
@@ -313,7 +357,7 @@
     status = "okay";
    
     gpio-line-names =
-                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "USB_oEN", "USB_SEL1",
                      "USB_PWR0",
                      "USB_PWR1",
                      "USB_PWR2",
@@ -333,4 +377,14 @@
                      "",
                      "",
                      "I2C5_ENA", "", "";
+};
+
+&gpio2 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&pinctrl_if_pwr>;
+    status = "okay";
+
+    gpio-line-names =
+                     "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "",
+                     "", "IF_PWR", "", "", "", "", "", "", "", "", "", "", "", "", "", "";
 };

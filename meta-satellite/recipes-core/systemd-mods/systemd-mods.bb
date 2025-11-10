@@ -25,6 +25,8 @@ do_install() {
     # File i2c-slave.conf
     echo "exprom"          >  ${D}${sysconfdir}/modules-load.d/i2c-slave.conf
 
+    # File rpmsg.conf
+    # echo "imx_rpmsg_hybrid" > ${D}${sysconfdir}/modules-load.d/rpmsg.conf
 }
 
 #do_install() {
@@ -38,3 +40,4 @@ FILES:${PN} += "${sysconfdir}/modules-load.d/usb-gadget.conf"
 FILES:${PN} += "${sysconfdir}/modules-load.d/csi-camera.conf"
 FILES:${PN} += "${sysconfdir}/modules-load.d/can.conf"
 FILES:${PN} += "${sysconfdir}/modules-load.d/i2c-slave.conf"
+# FILES:${PN} += "${sysconfdir}/modules-load.d/rpmsg.conf"

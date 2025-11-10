@@ -29,3 +29,15 @@ build() {
     cd ~/DownKernel/compulab-nxp-bsp
     bitbake core-image-satellite
 }
+
+#.\uuu.exe --version
+#uuu (Universal Update Utility) for nxp imx chips -- libuuu_1.5.233-0-g79ce7d2
+#
+#Unknown option: --version
+#
+#.\uuu.exe -v -b emmc_all core-image-satellite-ucm-imx93-20251026053642.rootfs.wic.zst
+
+#
+#setenv boot_targets 'usb0 mmc0 mmc1'
+#saveenv
+#

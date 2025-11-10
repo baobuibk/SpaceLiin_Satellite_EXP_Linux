@@ -1,0 +1,13 @@
+diff --git a/drivers/remoteproc/remoteproc_elf_loader.c b/drivers/remoteproc/remoteproc_elf_loader.c
+index 5a412d7b6e0b..3bb4f6fb448b 100644
+--- a/drivers/remoteproc/remoteproc_elf_loader.c
++++ b/drivers/remoteproc/remoteproc_elf_loader.c
+@@ -173,7 +173,7 @@ int rproc_elf_load_segments(struct rproc *rproc, const struct firmware *fw)
+ 
+ 	/* go through the available ELF segments */
+ 	for (i = 0; i < phnum; i++, phdr += elf_phdr_get_size) {
+-		u64 da = elf_phdr_get_p_paddr(class, phdr);
++		u64 da = elf_phdr_get_p_vaddr(class, phdr);
+ 		u64 memsz = elf_phdr_get_p_memsz(class, phdr);
+ 		u64 filesz = elf_phdr_get_p_filesz(class, phdr);
+ 		u64 offset = elf_phdr_get_p_offset(class, phdr);

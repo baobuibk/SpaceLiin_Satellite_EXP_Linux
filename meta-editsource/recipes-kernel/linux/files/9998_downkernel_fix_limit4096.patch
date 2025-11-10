@@ -1,0 +1,58 @@
+diff --git a/drivers/staging/media/imx/imx-ic-prp.c b/drivers/staging/media/imx/imx-ic-prp.c
+index ac5fb332088e..6b4731936eea 100644
+--- a/drivers/staging/media/imx/imx-ic-prp.c
++++ b/drivers/staging/media/imx/imx-ic-prp.c
+@@ -28,8 +28,8 @@
+  */
+ #define MIN_W        32
+ #define MIN_H        32
+-#define MAX_W      4096
+-#define MAX_H      4096
++#define MAX_W      5120
++#define MAX_H      5120
+ #define W_ALIGN    4 /* multiple of 16 pixels */
+ #define H_ALIGN    1 /* multiple of 2 lines */
+ #define S_ALIGN    1 /* multiple of 2 */
+diff --git a/drivers/staging/media/imx/imx-ic-prpencvf.c b/drivers/staging/media/imx/imx-ic-prpencvf.c
+index 9b81cfbcd777..c8925fb6b533 100644
+--- a/drivers/staging/media/imx/imx-ic-prpencvf.c
++++ b/drivers/staging/media/imx/imx-ic-prpencvf.c
+@@ -37,8 +37,8 @@
+  */
+ #define MIN_W_SINK   32
+ #define MIN_H_SINK   32
+-#define MAX_W_SINK 4096
+-#define MAX_H_SINK 4096
++#define MAX_W_SINK 5120
++#define MAX_H_SINK 5120
+ #define W_ALIGN_SINK  3 /* multiple of 8 pixels */
+ #define H_ALIGN_SINK  1 /* multiple of 2 lines */
+ 
+diff --git a/drivers/staging/media/imx/imx-media-csi.c b/drivers/staging/media/imx/imx-media-csi.c
+index b2b1f4dd41d7..4d82d4143d34 100644
+--- a/drivers/staging/media/imx/imx-media-csi.c
++++ b/drivers/staging/media/imx/imx-media-csi.c
+@@ -35,8 +35,8 @@
+  */
+ #define MIN_W       32
+ #define MIN_H       32
+-#define MAX_W      4096
+-#define MAX_H      4096
++#define MAX_W      5120
++#define MAX_H      5120
+ #define W_ALIGN    1 /* multiple of 2 pixels */
+ #define H_ALIGN    1 /* multiple of 2 lines */
+ #define S_ALIGN    1 /* multiple of 2 */
+diff --git a/drivers/staging/media/imx/imx8-common.h b/drivers/staging/media/imx/imx8-common.h
+index 3160fc87b22f..84f2b4628652 100644
+--- a/drivers/staging/media/imx/imx8-common.h
++++ b/drivers/staging/media/imx/imx8-common.h
+@@ -64,7 +64,7 @@
+ #define MXC_HDMI_RX_PADS_NUM		3
+ 
+ #define ISI_2K		2048U
+-#define ISI_4K		4096U
++#define ISI_4K		5120U
+ #define ISI_8K		8192U
+ #define ISI_MIN		32U
+ 

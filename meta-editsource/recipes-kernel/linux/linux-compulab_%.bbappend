@@ -23,5 +23,7 @@ SRC_URI += " \
     file://0203_downkernel_chainbuf_fix.patch \
     file://0204_downkernel_switchlaneswitchsensor_kconfigmakefile.patch \
     file://0205_downkernel_KconfigMakefile_for_exprom_i2cslave.patch \
+    file://0206_downkernel_KconfigMakefile_for_rpmsg_hybrid.patch \
+    file://9998_downkernel_fix_limit4096.patch \ 
 "
 

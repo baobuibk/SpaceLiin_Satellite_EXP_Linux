@@ -49,17 +49,13 @@ fi
 RESIZE_FILE="/etc/profile.d/resize.sh"
 if [ -f "$RESIZE_FILE" ]; then
     echo "[FirstBoot] Patching $RESIZE_FILE"
-    # Xóa toàn bộ dòng có từ "resize" (cũ)
     sed -i '/resize/d' "$RESIZE_FILE"
-    # Thêm đoạn an toàn
     cat <<'EOF' >> "$RESIZE_FILE"
 if [ -t 0 ] && command -v resize &>/dev/null; then
     timeout 0.1s resize >/dev/null 2>&1
 fi
 EOF
 fi
-
-# ---------------------------------------------------
 
 
 touch "$FLAG"

@@ -186,7 +186,7 @@ static const struct regval MIPI_2lane__5120x3840_Linear_7p5fps[] = {
     { 0x0340, 0x1BC4, AR2020_REG_VALUE_16BIT },     /* FRAME_LENGTH_LINES = 0x1BC4 */
     { 0x0342, 0xFFF0, AR2020_REG_VALUE_16BIT },     /* LINE_LENGTH_PCK = 0xFFF0 */
     
-    { 0x3EC8, 0x0200, AR2020_REG_VALUE_16BIT },     /* X_OUTPUT_OFFSET = 0x0000 */
+    { 0x3EC8, 0x0000, AR2020_REG_VALUE_16BIT },     /* X_OUTPUT_OFFSET = 0x0000 */
     { 0x3ECA, 0x0000, AR2020_REG_VALUE_16BIT },     /* Y_OUTPUT_OFFSET = 0x0000 */
     
     { 0x3F18, 0x7B70, AR2020_REG_VALUE_16BIT },     /* MIPI_JPEG_PN9_DATA_TYPE = 0x7B70 */
@@ -938,7 +938,7 @@ static const struct regval MIPI_2lane__5120x3840_Linear_7p5fps[] = {
 /* Supported sensor mode configurations */
 static const struct ar2020_mode supported_modes[] = {
     {
-        .width = 4096,
+        .width = 5120,
         .height = 3840,
         .max_fps = { .numerator = 511, .denominator = 100 }, // = 11 FPS
         .hts_def = 0xFFF0,      /* LINE_LENGTH_PCK = 21104 */

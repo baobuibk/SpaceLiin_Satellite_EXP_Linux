@@ -1,0 +1,23 @@
+=========== REVISION NOTES ===========
+>>> This: Dev16_08-10-2025_17:00:00
+
+--------------------------------------
+>>> Dev16_08-10-2025_17:00:00
+[Sum]: Updated for EXP-Satellite
+- Updated build script
+- python: remove zmqhub, fix bug range, datarate
+- src: update srce
+--------------------------------------
+>>> Dev16_07-10-2025_17:00:00
+[Sum]: Git clone and build
+- Test on Ubuntu
+
+--------------------------------------
+#PyModule_AddIntConstant(m, "CSP_CMP", CSP_CMP);
+#PyModule_AddIntConstant(m, "CSP_PING", CSP_PING);
+#PyModule_AddIntConstant(m, "CSP_PS", CSP_PS);
+#PyModule_AddIntConstant(m, "CSP_MEMFREE", CSP_MEMFREE);
+#PyModule_AddIntConstant(m, "CSP_REBOOT", CSP_REBOOT);
+#PyModule_AddIntConstant(m, "CSP_BUF_FREE", CSP_BUF_FREE);
+#PyModule_AddIntConstant(m, "CSP_UPTIME", CSP_UPTIME);
+#PyModule_AddIntConstant(m, "CSP_ANY", CSP_ANY);

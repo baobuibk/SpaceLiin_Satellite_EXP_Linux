@@ -142,3 +142,25 @@ WantedBy=multi-user.target
 sudo systemctl daemon-reload
 sudo systemctl enable exp_csp_client.service
 sudo systemctl start exp_csp_client.service
+
+
+#-------------------------------------------------------------------------------
+sudo nano /etc/apt/sources.list
+deb [arch=arm64] http://deb.debian.org/debian bullseye main
+deb [arch=arm64] http://deb.debian.org/debian-security bullseye-security main
+deb [arch=arm64] http://deb.debian.org/debian bullseye-updates main
+
+sudo nano /etc/apt/apt.conf.d/99allow-unsigned
+Acquire::AllowInsecureRepositories "true";
+Acquire::AllowDowngradeToInsecureRepositories "true";
+
+
+sudo apt update
+sudo apt install hello
+
+
+root@ucm-imx93:~# gst-launch-1.0 v4l2src device=/dev/video0 ! image/jpeg,width=640,height=360 ! jpegdec ! videoconvert ! fpsdisplaysink video-sink=ximagesink sync=false text-overlay=true
+
+
+wget https://picsum.photos/800/600 -O test.jpg
+feh test.jpg

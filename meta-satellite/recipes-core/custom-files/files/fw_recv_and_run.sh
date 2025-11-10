@@ -1,7 +1,14 @@
 #!/bin/sh
 
 FW_PATH="/home/root"
-FW_NAME="payexp_m33.elf"
+DEFAULT_FW_NAME="payexp_m33.elf"
+
+if [ -n "$1" ]; then
+    FW_NAME="$1"
+else
+    FW_NAME="$DEFAULT_FW_NAME"
+fi
+
 FULL_FW="$FW_PATH/$FW_NAME"
 
 echo "[INFO] Cleaning old firmware..."

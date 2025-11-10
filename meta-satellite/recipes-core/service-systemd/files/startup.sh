@@ -13,5 +13,11 @@ ip link set dev can1 up type can bitrate 1000000 restart-ms 100
 ip link set dev can1 txqueuelen 100
 ip link set can0 up
 ip link set can1 up
-gpioset -c gpiochip2 --daemonize 26=1
-gpioset -c gpiochip2 --daemonize 18=1
+gpioset -t0 -c gpiochip2 26=1
+gpioset -t0 -c gpiochip2 18=1
+gpioset -t0 -c gpiochip0 17=1
+gpioset -t0 -c gpiochip1 20=0
+gpioset -t0 -c gpiochip1 22=1
+gpioset -t0 -c gpiochip1 21=0
+gpioset -t0 -c gpiochip1 24=0
+modprobe -r imx_rpmsg_hybrid
